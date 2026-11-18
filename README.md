@@ -234,43 +234,6 @@ Every completed scan automatically produces two auditor-grade deliverables:
 
 ---
 
-## 🎤 Final Project Presentation Outline
-
-Use this structured outline for project demos, capstone presentations, or technical security reviews:
-
-### Slide 1: Title & Executive Overview
-- **Title**: WebScanPro — Web Application Security Testing Tool
-- **Presenter Role**: Full-Stack Software Engineer & Application Security Engineer
-- **Mission**: Automate dynamic security audits for authorized web targets without causing downtime or data destruction.
-
-### Slide 2: The Problem Space & Threat Landscape
-- Web applications represent the primary attack surface (OWASP Top 10).
-- Developers lack low-impact, local security audit tools that run safely during development.
-- Public cloud scanners often send aggressive, destructive payloads unsuitable for staging environments.
-
-### Slide 3: System Architecture & Safety Boundaries
-- **Architecture**: Modular Python/Flask backend, SQLAlchemy/SQLite data layer, Bootstrap 5 cyber dashboard, ReportLab PDF engine.
-- **Safety First**: Strict target allowlisting (localhost / private IPs), bounded BFS crawling, request budgets, and polite rate limiting.
-- **Zero-Harm Principle**: Diagnostic detection vs destructive exploitation.
-
-### Slide 4: Core Security Modules & Detection Heuristics
-- **Headers & Cookies**: Automated audit of CSP, HSTS, X-Content-Type-Options, HttpOnly, and SameSite.
-- **SQLi**: Syntax error signature matching and differential quote recovery.
-- **XSS**: Benign canary markers with DOM and script context analysis.
-- **Authentication**: Token entropy, cleartext HTTP inspection, and logout invalidation.
-- **IDOR**: Two-account differential authorization testing.
-
-### Slide 5: Live Demonstration
-- Tour the Dark Cyber Dashboard and interactive Chart.js metrics.
-- Demonstrate the New Scan Wizard with target validation and lab presets.
-- Run a live scan against the built-in Mock Target Lab.
-- Observe real-time progress, streaming console logs, and instant finding detection.
-- Download and review the generated ReportLab executive PDF report.
-- Review the Scan Comparison tool to show vulnerability remediation between two scan runs.
-
-### Slide 6: Automated Verification & Test Coverage
-- 30 automated tests covering all modules, routes, models, and PDF generation.
-- 100% test pass rate with Pytest.
 
 ### Slide 7: Conclusion & Future Roadmap
 - Extensible plugin architecture for additional OWASP categories (SSRF, CSRF).
