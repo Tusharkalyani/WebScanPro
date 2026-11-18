@@ -233,9 +233,3 @@ Every completed scan automatically produces two auditor-grade deliverables:
 2. **Interactive HTML Report**: Print-optimized standalone report accessible directly from the browser (`/reports/scan/<id>/html`).
 
 ---
-
-
-### Slide 7: Conclusion & Future Roadmap
-- Extensible plugin architecture for additional OWASP categories (SSRF, CSRF).
-- Integration into CI/CD pipelines (GitHub Actions, GitLab CI).
-- Questions & Answers.
