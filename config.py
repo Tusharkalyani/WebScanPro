@@ -3,15 +3,25 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
 
+# Check for Vercel Serverless environment (where only /tmp is writable)
+IS_VERCEL = bool(os.environ.get("VERCEL") or os.environ.get("VERCEL_ENV"))
+
+if IS_VERCEL:
+    DEFAULT_DB_PATH = Path("/tmp/webscanpro.db")
+    DEFAULT_REPORTS_DIR = Path("/tmp/reports")
+else:
+    DEFAULT_DB_PATH = BASE_DIR / "webscanpro.db"
+    DEFAULT_REPORTS_DIR = BASE_DIR / "instance" / "reports"
+
 class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY", "webscanpro-super-secret-key-cyber-2026")
     SQLALCHEMY_DATABASE_URI = os.environ.get(
-        "DATABASE_URL", f"sqlite:///{BASE_DIR / 'webscanpro.db'}"
+        "DATABASE_URL", f"sqlite:///{DEFAULT_DB_PATH}"
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # Reports directory
-    REPORTS_DIR = BASE_DIR / "instance" / "reports"
+    REPORTS_DIR = DEFAULT_REPORTS_DIR
     
     # Security boundaries & safety limits
     ALLOWED_TARGET_HOSTS = [
