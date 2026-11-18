@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+
+{% block title %}Scan Comparison — WebScanPro{% endblock %}
+{% block page_title %}Security Differential: Scan Comparison{% endblock %}
+
+{% block content %}
+<!-- Selection Form Card -->
+<div class="card-saas mb-4">
+    <div class="card-saas-header mb-3">
+        <div>
+            <h2 class="card-saas-title">
+                <i class="bi bi-arrow-left-right text-info"></i> Select Scans to Compare
+            </h2>
+            <div class="card-saas-subtitle">Evaluate security posture delta, regressions, and remediations between two audit runs.</div>
+        </div>
+    </div>
+    <form method="GET" action="{{ url_for('scan.compare') }}" class="row g-3 align-items-end">
+        <div class="col-md-5">
+            <label class="form-label text-secondary small fw-bold text-uppercase" style="letter-spacing: 0.05em;">Baseline Scan (Scan A):</label>
+            <select name="scan1" class="form-select-saas w-100" required>
+                <option value="">Select Baseline Scan...</option>
+                {% for s in all_scans %}
+                <option value="{{ s.id }}" {% if scan1 and scan1.id == s.id %}selected{% endif %}>
+                    #{{ s.id }} — {{ s.target.name }} ({{ s.target.base_url }}) - {{ s.started_at.strftime('%Y-%m-%d %H:%M') if s.started_at else '' }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-5">
+            <label class="form-label text-secondary small fw-bold text-uppercase" style="letter-spacing: 0.05em;">Comparison Scan (Scan B):</label>
+            <select name="scan2" class="form-select-saas w-100" required>
+                <option value="">Select Comparison Scan...</option>
+                {% for s in all_scans %}
+                <option value="{{ s.id }}" {% if scan2 and scan2.id == s.id %}selected{% endif %}>
+                    #{{ s.id }} — {{ s.target.name }} ({{ s.target.base_url }}) - {{ s.started_at.strftime('%Y-%m-%d %H:%M') if s.started_at else '' }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn-saas-primary w-100 justify-content-center py-2">
+                <i class="bi bi-intersect"></i> Compare
+            </button>
+        </div>
+    </form>
+</div>
+
+{% if diff_data %}
+<!-- Differential Metrics Summary -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="stat-card-clean" style="border-left: 3px solid var(--color-red);">
+            <div>
+                <div class="stat-title text-danger">New / Regressed Findings</div>
+                <div class="stat-number text-danger">{{ diff_data.count_new }}</div>
+                <div class="stat-desc">Introduced in Scan #{{ scan2.id }}</div>
+            </div>
+            <div class="stat-icon-bubble bubble-red">
+                <i class="bi bi-plus-circle"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card-clean" style="border-left: 3px solid var(--color-yellow);">
+            <div>
+                <div class="stat-title text-warning">Persistent Findings</div>
+                <div class="stat-number text-warning">{{ diff_data.count_persistent }}</div>
+                <div class="stat-desc">Still unpatched across both scans</div>
+            </div>
+            <div class="stat-icon-bubble" style="background: rgba(251, 191, 36, 0.12); color: var(--color-yellow); border: 1px solid rgba(251, 191, 36, 0.2);">
+                <i class="bi bi-hourglass-split"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card-clean" style="border-left: 3px solid var(--color-green);">
+            <div>
+                <div class="stat-title text-success">Remediated / Resolved</div>
+                <div class="stat-number text-success">{{ diff_data.count_resolved }}</div>
+                <div class="stat-desc">Fixed since Baseline Scan #{{ scan1.id }}</div>
+            </div>
+            <div class="stat-icon-bubble bubble-green">
+                <i class="bi bi-check-circle"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Section: New / Regressed Findings -->
+<div class="card-saas mb-4">
+    <div class="card-saas-header mb-3">
+        <h2 class="card-saas-title text-danger">
+            <i class="bi bi-exclamation-triangle-fill me-1"></i> New Vulnerabilities in Scan #{{ scan2.id }} ({{ diff_data.count_new }})
+        </h2>
+    </div>
+    {% if diff_data.new %}
+    <div class="table-responsive">
+        <table class="table-modern">
+            <thead>
+                <tr>
+                    <th>Severity</th>
+                    <th>Vulnerability Type</th>
+                    <th>Endpoint</th>
+                    <th>Parameter</th>
+                    <th>OWASP Category</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for f in diff_data.new %}
+                <tr>
+                    <td>
+                        {% if f.severity == 'CRITICAL' %}
+                        <span class="chip chip-critical"><i class="bi bi-circle-fill" style="font-size: 0.45rem;"></i> Critical</span>
+                        {% elif f.severity == 'HIGH' %}
+                        <span class="chip chip-high"><i class="bi bi-circle-fill" style="font-size: 0.45rem;"></i> High</span>
+                        {% elif f.severity == 'MEDIUM' %}
+                        <span class="chip chip-medium"><i class="bi bi-circle-fill" style="font-size: 0.45rem;"></i> Medium</span>
+                        {% elif f.severity == 'LOW' %}
+                        <span class="chip chip-low"><i class="bi bi-circle-fill" style="font-size: 0.45rem;"></i> Low</span>
+                        {% else %}
+                        <span class="chip chip-info"><i class="bi bi-circle-fill" style="font-size: 0.45rem;"></i> Info</span>
+                        {% endif %}
+                    </td>
+                    <td class="fw-semibold text-white">{{ f.vuln_type }}</td>
+                    <td class="font-monospace small text-info">{{ f.endpoint }}</td>
+                    <td><code>{{ f.parameter }}</code></td>
+                    <td class="small text-secondary">{{ f.category }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="p-3 text-success small"><i class="bi bi-shield-check me-1"></i> No new security regressions detected in this comparison.</div>
+    {% endif %}
+</div>
+
+<!-- Section: Remediated Findings -->
+<div class="card-saas mb-4">
+    <div class="card-saas-header mb-3">
+        <h2 class="card-saas-title text-success">
+            <i class="bi bi-check-all me-1"></i> Successfully Remediated Since Baseline ({{ diff_data.count_resolved }})
+        </h2>
+    </div>
+    {% if diff_data.resolved %}
+    <div class="table-responsive">
+        <table class="table-modern">
+            <thead>
+                <tr>
+                    <th>Severity</th>
+                    <th>Remediated Weakness</th>
+                    <th>Endpoint</th>
+                    <th>Parameter</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for f in diff_data.resolved %}
+                <tr>
+                    <td>
+                        <span class="chip chip-success"><i class="bi bi-check" style="font-size: 0.8rem;"></i> {{ f.severity }}</span>
+                    </td>
+                    <td class="fw-semibold text-white"><del>{{ f.vuln_type }}</del></td>
+                    <td class="font-monospace small text-secondary">{{ f.endpoint }}</td>
+                    <td><code>{{ f.parameter }}</code></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="p-3 text-secondary small">No previously recorded findings were resolved between these two scans.</div>
+    {% endif %}
+</div>
+
+<!-- Section: Persistent Findings -->
+<div class="card-saas">
+    <div class="card-saas-header mb-3">
+        <h2 class="card-saas-title text-warning">
+            <i class="bi bi-hourglass-split me-1"></i> Persistent Findings: Unpatched Weaknesses ({{ diff_data.count_persistent }})
+        </h2>
+    </div>
+    {% if diff_data.persistent %}
+    <div class="table-responsive">
+        <table class="table-modern">
+            <thead>
+                <tr>
+                    <th>Severity</th>
+                    <th>Vulnerability Type</th>
+                    <th>Endpoint</th>
+                    <th>Parameter</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for f in diff_data.persistent %}
+                <tr>
+                    <td>
+                        {% if f.severity == 'CRITICAL' %}
+                        <span class="chip chip-critical"><i class="bi bi-circle-fill" style="font-size: 0.45rem;"></i> Critical</span>
+                        {% elif f.severity == 'HIGH' %}
+                        <span class="chip chip-high"><i class="bi bi-circle-fill" style="font-size: 0.45rem;"></i> High</span>
+                        {% elif f.severity == 'MEDIUM' %}
+                        <span class="chip chip-medium"><i class="bi bi-circle-fill" style="font-size: 0.45rem;"></i> Medium</span>
+                        {% elif f.severity == 'LOW' %}
+                        <span class="chip chip-low"><i class="bi bi-circle-fill" style="font-size: 0.45rem;"></i> Low</span>
+                        {% else %}
+                        <span class="chip chip-info"><i class="bi bi-circle-fill" style="font-size: 0.45rem;"></i> Info</span>
+                        {% endif %}
+                    </td>
+                    <td class="fw-semibold text-white">{{ f.vuln_type }}</td>
+                    <td class="font-monospace small text-info">{{ f.endpoint }}</td>
+                    <td><code>{{ f.parameter }}</code></td>
+                    <td><span class="chip chip-medium">Still Active</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="p-3 text-secondary small">No persistent findings.</div>
+    {% endif %}
+</div>
+
+{% else %}
+<div class="card-saas text-center py-5">
+    <div class="stat-icon-bubble bubble-blue mx-auto mb-3" style="width: 54px; height: 54px; font-size: 1.5rem;">
+        <i class="bi bi-arrow-left-right"></i>
+    </div>
+    <h3 class="fs-5 fw-bold text-white mb-2">Compare Two Security Audits</h3>
+    <p class="text-secondary small" style="max-width: 520px; margin: 0 auto;">
+        Select two scan executions above (such as an older baseline scan and a recent scan) to instantly identify new vulnerabilities, verify remediations, and track persistent issues.
+    </p>
+</div>
+{% endif %}
+{% endblock %}

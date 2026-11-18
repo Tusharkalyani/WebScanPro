@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+
+{% block title %}Vulnerability Explorer — WebScanPro{% endblock %}
+{% block page_title %}Security Vulnerability Explorer{% endblock %}
+
+{% block content %}
+<!-- Quick Severity Filter Badges Row -->
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+    <a href="{{ url_for('vulnerabilities.index') }}" class="btn-saas-secondary py-1 px-3 {% if not selected_severity %}active text-white border-info{% endif %}" style="font-size: 0.8rem;">
+        All Findings ({{ findings|length }})
+    </a>
+    <a href="{{ url_for('vulnerabilities.index') }}?severity=CRITICAL" class="chip chip-critical text-decoration-none py-1 px-3 {% if selected_severity == 'CRITICAL' %}shadow-sm{% endif %}">
+        <span class="sev-bullet" style="background-color: #FB7185;"></span> Critical
+    </a>
+    <a href="{{ url_for('vulnerabilities.index') }}?severity=HIGH" class="chip chip-high text-decoration-none py-1 px-3 {% if selected_severity == 'HIGH' %}shadow-sm{% endif %}">
+        <span class="sev-bullet" style="background-color: #FB923C;"></span> High
+    </a>
+    <a href="{{ url_for('vulnerabilities.index') }}?severity=MEDIUM" class="chip chip-medium text-decoration-none py-1 px-3 {% if selected_severity == 'MEDIUM' %}shadow-sm{% endif %}">
+        <span class="sev-bullet" style="background-color: #FBBF24;"></span> Medium
+    </a>
+    <a href="{{ url_for('vulnerabilities.index') }}?severity=LOW" class="chip chip-low text-decoration-none py-1 px-3 {% if selected_severity == 'LOW' %}shadow-sm{% endif %}">
+        <span class="sev-bullet" style="background-color: #38BDF8;"></span> Low
+    </a>
+    <a href="{{ url_for('vulnerabilities.index') }}?severity=INFO" class="chip chip-info text-decoration-none py-1 px-3 {% if selected_severity == 'INFO' %}shadow-sm{% endif %}">
+        <span class="sev-bullet" style="background-color: #94A3B8;"></span> Informational
+    </a>
+</div>
+
+<!-- Search & Detailed Filters Card -->
+<div class="card-saas mb-4">
+    <form method="GET" action="{{ url_for('vulnerabilities.index') }}" class="row g-2 align-items-center">
+        <div class="col-lg-4 col-md-6">
+            <div class="input-group">
+                <span class="input-group-text bg-transparent border-secondary border-opacity-25 text-muted"><i class="bi bi-search"></i></span>
+                <input type="text" name="q" class="form-control form-control-saas" placeholder="Search vulnerability, endpoint, parameter..." value="{{ search_query }}">
+            </div>
+        </div>
+
+        <div class="col-lg-2 col-md-3 col-6">
+            <select name="severity" class="form-select form-select-saas" onchange="this.form.submit()">
+                <option value="">All Severities</option>
+                <option value="CRITICAL" {% if selected_severity == 'CRITICAL' %}selected{% endif %}>Critical</option>
+                <option value="HIGH" {% if selected_severity == 'HIGH' %}selected{% endif %}>High</option>
+                <option value="MEDIUM" {% if selected_severity == 'MEDIUM' %}selected{% endif %}>Medium</option>
+                <option value="LOW" {% if selected_severity == 'LOW' %}selected{% endif %}>Low</option>
+                <option value="INFO" {% if selected_severity == 'INFO' %}selected{% endif %}>Informational</option>
+            </select>
+        </div>
+
+        <div class="col-lg-2 col-md-3 col-6">
+            <select name="status" class="form-select form-select-saas" onchange="this.form.submit()">
+                <option value="">All Statuses</option>
+                <option value="Confirmed Finding" {% if selected_status == 'Confirmed Finding' %}selected{% endif %}>Confirmed</option>
+                <option value="Potential Finding" {% if selected_status == 'Potential Finding' %}selected{% endif %}>Potential</option>
+            </select>
+        </div>
+
+        <div class="col-lg-2 col-md-6">
+            <select name="category" class="form-select form-select-saas" onchange="this.form.submit()">
+                <option value="">All OWASP Categories</option>
+                {% for cat in categories %}
+                <option value="{{ cat }}" {% if selected_category == cat %}selected{% endif %}>{{ cat }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="col-lg-2 col-md-6 d-flex gap-2">
+            <button type="submit" class="btn-saas-primary w-100 justify-content-center">
+                <i class="bi bi-funnel"></i> Filter
+            </button>
+            {% if selected_severity or selected_status or selected_category or search_query %}
+            <a href="{{ url_for('vulnerabilities.index') }}" class="btn-saas-secondary" title="Reset Filters"><i class="bi bi-x-lg"></i></a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+<!-- Findings Data Table Card -->
+<div class="card-saas">
+    <div class="card-saas-header">
+        <div>
+            <h2 class="card-saas-title"><i class="bi bi-shield-slash text-cyan"></i> Recorded Vulnerabilities ({{ findings|length }})</h2>
+            <div class="card-saas-subtitle">Verified dynamic security findings and potential vulnerabilities</div>
+        </div>
+        <button type="button" class="btn-saas-secondary py-1 px-3" id="btnExportCsv" title="Export current view to CSV">
+            <i class="bi bi-download me-1"></i> Export CSV
+        </button>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table-modern" id="vulnTable">
+            <thead>
+                <tr>
+                    <th style="width: 100px;">Severity</th>
+                    <th>Vulnerability Title</th>
+                    <th>Affected Endpoint</th>
+                    <th>Parameter</th>
+                    <th>OWASP Top 10</th>
+                    <th>Confidence</th>
+                    <th>Status</th>
+                    <th class="text-end">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if findings %}
+                    {% for f in findings %}
+                    <tr>
+                        <td>
+                            {% if f.severity == 'CRITICAL' %}
+                                <span class="chip chip-critical">CRITICAL</span>
+                            {% elif f.severity == 'HIGH' %}
+                                <span class="chip chip-high">HIGH</span>
+                            {% elif f.severity == 'MEDIUM' %}
+                                <span class="chip chip-medium">MEDIUM</span>
+                            {% elif f.severity == 'LOW' %}
+                                <span class="chip chip-low">LOW</span>
+                            {% else %}
+                                <span class="chip chip-info">INFO</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{{ url_for('vulnerabilities.detail', finding_id=f.id) }}" class="fw-semibold text-white text-decoration-none">
+                                {{ f.vuln_type }}
+                            </a>
+                            <div class="text-muted font-monospace" style="font-size: 0.72rem;">{{ f.cwe_id }} &bull; CVSS {{ f.cvss_score }}</div>
+                        </td>
+                        <td>
+                            <div class="font-monospace text-cyan small text-truncate" style="max-width: 220px;" title="{{ f.endpoint }}">
+                                {{ f.endpoint }}
+                            </div>
+                            <span class="text-muted small">{{ f.http_method }}</span>
+                        </td>
+                        <td>
+                            {% if f.parameter and f.parameter != 'N/A' %}
+                            <span class="chip chip-info font-monospace" style="font-size: 0.72rem;">{{ f.parameter }}</span>
+                            {% else %}
+                            <span class="text-muted small">&mdash;</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="text-secondary small">{{ f.category }}</span>
+                        </td>
+                        <td>
+                            {% if f.confidence == 'CONFIRMED' %}
+                            <span class="chip chip-success font-monospace" style="font-size: 0.68rem;">CONFIRMED</span>
+                            {% elif f.confidence == 'LIKELY' %}
+                            <span class="chip chip-low font-monospace" style="font-size: 0.68rem;">LIKELY</span>
+                            {% else %}
+                            <span class="chip chip-medium font-monospace" style="font-size: 0.68rem;">SUSPECTED</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="text-white small">{{ f.status }}</span>
+                        </td>
+                        <td class="text-end">
+                            <a href="{{ url_for('vulnerabilities.detail', finding_id=f.id) }}" class="btn-saas-secondary py-1 px-2" style="font-size: 0.78rem;">
+                                <i class="bi bi-arrow-right"></i> Inspect
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center py-5 text-muted">
+                            <i class="bi bi-shield-check fs-2 text-green d-block mb-2"></i>
+                            No vulnerability findings match the selected criteria.
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const btnExport = document.getElementById("btnExportCsv");
+    if (btnExport) {
+        btnExport.addEventListener("click", function () {
+            const table = document.getElementById("vulnTable");
+            let csv = [];
+            for (let i = 0; i < table.rows.length; i++) {
+                let row = [], cols = table.rows[i].querySelectorAll("td, th");
+                for (let j = 0; j < cols.length - 1; j++) {
+                    let text = cols[j].innerText.replace(/"/g, '""').trim();
+                    row.push('"' + text + '"');
+                }
+                csv.push(row.join(","));
+            }
+            const blob = new Blob([csv.join("\n")], { type: "text/csv" });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.setAttribute("href", url);
+            a.setAttribute("download", "WebScanPro_Vulnerabilities_Export.csv");
+            a.click();
+        });
+    }
+});
+</script>
+{% endblock %}

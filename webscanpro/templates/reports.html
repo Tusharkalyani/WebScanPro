@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}Security Reports — WebScanPro{% endblock %}
+{% block page_title %}Executive &amp; Technical Reports{% endblock %}
+
+{% block content %}
+<div class="card-saas mb-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+            <h2 class="card-saas-title mb-1">
+                <i class="bi bi-file-earmark-pdf text-danger"></i> Executive &amp; Technical Reports
+            </h2>
+            <div class="card-saas-subtitle">Download auditor-ready executive PDF dossiers or preview interactive HTML assessment summaries.</div>
+        </div>
+        <a href="{{ url_for('scan.new_scan') }}" class="btn-saas-primary">
+            <i class="bi bi-play-fill"></i> Launch Assessment
+        </a>
+    </div>
+</div>
+
+<div class="card-saas">
+    <div class="card-saas-header mb-3">
+        <h2 class="card-saas-title">
+            <i class="bi bi-archive text-info"></i> Generated Report Artifacts ({{ scans|length }})
+        </h2>
+    </div>
+    <div class="table-responsive">
+        <table class="table-modern">
+            <thead>
+                <tr>
+                    <th>Report ID</th>
+                    <th>Target Application</th>
+                    <th>Assessment Date</th>
+                    <th>Vulnerabilities Detected</th>
+                    <th>PDF Download</th>
+                    <th class="text-end">HTML Preview</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if scans %}
+                    {% for s in scans %}
+                    <tr>
+                        <td>
+                            <span class="fw-bold font-monospace text-info">#{{ s.id }}</span>
+                            {% if "[DEMO]" in (s.target.name or "") %}
+                            <span class="badge bg-secondary ms-1" style="font-size: 0.65rem;">DEMO</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="fw-semibold text-white">{{ s.target.name }}</div>
+                            <div class="small font-monospace text-secondary">{{ s.target.base_url }}</div>
+                        </td>
+                        <td>
+                            <div class="small text-white">{{ s.started_at.strftime('%Y-%m-%d %H:%M UTC') if s.started_at else '---' }}</div>
+                            <div class="small text-secondary">{{ s.duration_seconds|round(1) }}s duration</div>
+                        </td>
+                        <td>
+                            <span class="fw-bold fs-6 text-white">{{ s.total_findings }}</span>
+                            {% if s.count_critical > 0 %}<span class="chip chip-critical ms-1" style="padding: 1px 5px; font-size: 0.68rem;">{{ s.count_critical }}C</span>{% endif %}
+                            {% if s.count_high > 0 %}<span class="chip chip-high ms-1" style="padding: 1px 5px; font-size: 0.68rem;">{{ s.count_high }}H</span>{% endif %}
+                            {% if s.count_medium > 0 %}<span class="chip chip-medium ms-1" style="padding: 1px 5px; font-size: 0.68rem;">{{ s.count_medium }}M</span>{% endif %}
+                            {% if s.count_low > 0 %}<span class="chip chip-low ms-1" style="padding: 1px 5px; font-size: 0.68rem;">{{ s.count_low }}L</span>{% endif %}
+                        </td>
+                        <td>
+                            <a href="{{ url_for('reports.download_pdf', scan_id=s.id) }}" class="btn-saas-secondary py-1 px-3">
+                                <i class="bi bi-file-earmark-pdf text-danger"></i> Download PDF
+                            </a>
+                        </td>
+                        <td class="text-end">
+                            <a href="{{ url_for('reports.view_html', scan_id=s.id) }}" target="_blank" class="btn-saas-secondary py-1 px-3">
+                                <i class="bi bi-box-arrow-up-right text-info"></i> View HTML
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center py-5 text-muted">
+                            <i class="bi bi-file-earmark-x fs-1 text-muted d-block mb-2"></i>
+                            No completed scans available for reporting yet.
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

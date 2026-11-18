@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}Settings & Lab Environments — WebScanPro{% endblock %}
+{% block page_title %}Platform Settings & Target Security Boundaries{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Security Boundary Policies -->
+    <div class="col-lg-6">
+        <div class="card-saas h-100">
+            <div class="card-saas-header mb-3">
+                <h2 class="card-saas-title">
+                    <i class="bi bi-shield-lock text-info"></i> Authorized Target Policy
+                </h2>
+                <span class="chip chip-success">Enforced</span>
+            </div>
+            <p class="text-secondary small mb-3">
+                To prevent accidental scanning of unauthorized systems, WebScanPro restricts scanning to approved loopback and private lab addresses by default.
+            </p>
+            <div class="mb-3">
+                <label class="form-label text-white small fw-bold text-uppercase" style="letter-spacing: 0.05em;">Default Approved Target Hosts:</label>
+                <div class="d-flex flex-column gap-2">
+                    {% for h in allowed_hosts %}
+                    <div class="d-flex align-items-center gap-2 p-2 rounded card-inner-surface font-monospace text-info small">
+                        <i class="bi bi-check-circle-fill text-success"></i> {{ h }}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="p-3 rounded border border-info border-opacity-25" style="background: rgba(2, 132, 199, 0.06);">
+                <div class="fw-semibold text-info small mb-1"><i class="bi bi-info-circle me-1"></i> Private IP Networks Policy:</div>
+                <div class="small text-secondary">
+                    Private RFC 1918 subnets (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16) and local Docker bridge networks are permitted when explicit operator authorization is checked.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Crawler Budgets and Rate Limits -->
+    <div class="col-lg-6">
+        <div class="card-saas h-100">
+            <div class="card-saas-header mb-3">
+                <h2 class="card-saas-title">
+                    <i class="bi bi-speedometer text-info"></i> Crawler & Engine Defaults
+                </h2>
+                <span class="chip chip-info font-monospace">Default Budget</span>
+            </div>
+            <table class="table-modern">
+                <tr>
+                    <td class="text-secondary fw-semibold" style="width: 48%;">Default Crawl Depth</td>
+                    <td class="font-monospace text-info text-end">{{ config.DEFAULT_MAX_DEPTH }} levels</td>
+                </tr>
+                <tr>
+                    <td class="text-secondary fw-semibold">Default Max Page Budget</td>
+                    <td class="font-monospace text-info text-end">{{ config.DEFAULT_MAX_PAGES }} pages</td>
+                </tr>
+                <tr>
+                    <td class="text-secondary fw-semibold">Polite Request Delay</td>
+                    <td class="font-monospace text-info text-end">{{ config.DEFAULT_REQUEST_DELAY }}s</td>
+                </tr>
+                <tr>
+                    <td class="text-secondary fw-semibold">HTTP Request Timeout</td>
+                    <td class="font-monospace text-info text-end">{{ config.DEFAULT_REQUEST_TIMEOUT }}s</td>
+                </tr>
+                <tr>
+                    <td class="text-secondary fw-semibold">Max Requests per Scan</td>
+                    <td class="font-monospace text-info text-end">{{ config.DEFAULT_MAX_REQUESTS_PER_SCAN }} requests</td>
+                </tr>
+            </table>
+            <div class="small text-secondary mt-3 d-flex align-items-center gap-2">
+                <i class="bi bi-shield-check text-success"></i>
+                <span>Parameters ensure testing does not overwhelm targets or trigger accidental denial of service.</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lab Environments Connectivity Check -->
+    <div class="col-12">
+        <div class="card-saas">
+            <div class="card-saas-header mb-3">
+                <div>
+                    <h2 class="card-saas-title">
+                        <i class="bi bi-hdd-network text-info"></i> Local Security Lab Bench Status
+                    </h2>
+                    <div class="card-saas-subtitle">Live health status of integrated local benchmark targets</div>
+                </div>
+                <button type="button" class="btn-saas-secondary" onclick="window.location.reload()">
+                    <i class="bi bi-arrow-clockwise"></i> Refresh Status
+                </button>
+            </div>
+            <div class="row g-3">
+                {% for key, lab in lab_statuses.items() %}
+                <div class="col-md-4">
+                    <div class="card-saas h-100 p-3 card-inner-surface">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h3 class="fs-6 fw-bold text-white mb-0">{{ lab.name }}</h3>
+                            {% if lab.status == 'ONLINE' %}
+                            <span class="chip chip-success"><i class="bi bi-check-circle-fill" style="font-size: 0.45rem;"></i> ONLINE</span>
+                            {% else %}
+                            <span class="chip chip-critical"><i class="bi bi-x-circle-fill" style="font-size: 0.45rem;"></i> OFFLINE</span>
+                            {% endif %}
+                        </div>
+                        <div class="font-monospace small text-info mb-2">{{ lab.url }}</div>
+                        <p class="small text-secondary mb-3">{{ lab.description }}</p>
+                        
+                        {% if lab.status == 'ONLINE' %}
+                        <div class="small text-success mb-3 d-flex align-items-center gap-1">
+                            <i class="bi bi-reception-4"></i> Connected ({{ lab.response_time_ms }}ms latency)
+                        </div>
+                        <a href="{{ lab.url }}" target="_blank" class="btn-saas-secondary w-100 justify-content-center">
+                            <i class="bi bi-box-arrow-up-right"></i> Open Lab
+                        </a>
+                        {% else %}
+                        <div class="small text-warning mb-1">Docker Startup Command:</div>
+                        <div class="p-2 rounded card-inner-surface font-monospace text-break mb-2" style="font-size: 0.72rem;">
+                            {{ lab.setup_cmd }}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

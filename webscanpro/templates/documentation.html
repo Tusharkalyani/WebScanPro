@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+
+{% block title %}Documentation & Methodology — WebScanPro{% endblock %}
+{% block page_title %}Security Architecture, Methodology & User Guide{% endblock %}
+
+{% block content %}
+<div class="row g-4 justify-content-center">
+    <div class="col-lg-11">
+        <!-- Architecture Overview -->
+        <div class="card-saas mb-4">
+            <div class="card-saas-header mb-3">
+                <h2 class="card-saas-title">
+                    <i class="bi bi-shield-shaded text-info"></i> Architecture Overview
+                </h2>
+                <span class="chip chip-info font-monospace">Core Design</span>
+            </div>
+            <p class="text-secondary small">
+                <strong class="text-white">WebScanPro</strong> is an automated Dynamic Application Security Testing (DAST) suite engineered to inspect authorized web applications and APIs for critical security weaknesses. It operates via modular, safe heuristic analysis without using destructive payloads, denial of service attacks, or unauthorized data exfiltration.
+            </p>
+            <div class="table-responsive mt-3">
+                <table class="table-modern">
+                    <thead>
+                        <tr>
+                            <th>Security Testing Module</th>
+                            <th>Detection Technique</th>
+                            <th>OWASP Top 10 Mapping</th>
+                            <th>Safety Guarantee</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="fw-semibold text-white">Target Crawler</td>
+                            <td class="small text-secondary">Breadth-First link and form extraction with canonical URL deduplication.</td>
+                            <td><span class="chip chip-info">Reconnaissance</span></td>
+                            <td class="small text-secondary">Bounded depth &amp; request budgets; ignores media assets &amp; logout links.</td>
+                        </tr>
+                        <tr>
+                            <td class="fw-semibold text-white">Security Headers &amp; Cookies</td>
+                            <td class="small text-secondary">Direct inspection of HTTP response headers and Set-Cookie attribute flags.</td>
+                            <td><span class="chip chip-medium">A05:2021 Security Misconfig</span></td>
+                            <td class="small text-secondary">Passive inspection. Zero impact on target state.</td>
+                        </tr>
+                        <tr>
+                            <td class="fw-semibold text-white">SQL Injection Analyzer</td>
+                            <td class="small text-secondary">Controlled single/double quote syntax checks and balanced differential analysis.</td>
+                            <td><span class="chip chip-critical">A03:2021 Injection (CWE-89)</span></td>
+                            <td class="small text-secondary">Non-destructive. Detects database engine syntax errors. Never extracts database contents.</td>
+                        </tr>
+                        <tr>
+                            <td class="fw-semibold text-white">Reflected Input / XSS</td>
+                            <td class="small text-secondary">Injection of unique benign alphanumeric canary tokens (e.g. <code>wsp_chk_&lt;tag&gt;</code>).</td>
+                            <td><span class="chip chip-high">A03:2021 Injection (CWE-79)</span></td>
+                            <td class="small text-secondary">Harmless markers. Never executes active script code or alters client cookies.</td>
+                        </tr>
+                        <tr>
+                            <td class="fw-semibold text-white">Authentication &amp; Session Auditor</td>
+                            <td class="small text-secondary">Audits HTTP credential transport, token entropy, and logout invalidation.</td>
+                            <td><span class="chip chip-high">A07:2021 Auth Failures</span></td>
+                            <td class="small text-secondary">Tests only designated test accounts. No brute force or credential stuffing.</td>
+                        </tr>
+                        <tr>
+                            <td class="fw-semibold text-white">Access Control &amp; IDOR Analyzer</td>
+                            <td class="small text-secondary">Controlled two-account differential authorization testing and unauth object access.</td>
+                            <td><span class="chip chip-critical">A01:2021 Broken Access Control</span></td>
+                            <td class="small text-secondary">Operates strictly between designated test accounts A and B. No third-party data accessed.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Safe Testing Methodology & Guidelines -->
+        <div class="card-saas mb-4">
+            <div class="card-saas-header mb-3">
+                <h2 class="card-saas-title">
+                    <i class="bi bi-shield-check text-info"></i> Safe Testing Methodology &amp; Principles
+                </h2>
+            </div>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <div class="card-saas p-3 h-100 card-inner-surface">
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <div class="stat-icon-bubble bubble-green" style="width: 32px; height: 32px; font-size: 0.9rem;">
+                                <i class="bi bi-check2-circle"></i>
+                            </div>
+                            <h3 class="fs-6 fw-bold text-white mb-0">Authorized Targets Only</h3>
+                        </div>
+                        <p class="small text-secondary mb-0">
+                            WebScanPro restricts scans by default to <code>localhost</code>, <code>127.0.0.1</code>, and approved private test environments. Operators must explicitly verify ownership or written permission before initializing an assessment.
+                        </p>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card-saas p-3 h-100 card-inner-surface">
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <div class="stat-icon-bubble bubble-blue" style="width: 32px; height: 32px; font-size: 0.9rem;">
+                                <i class="bi bi-clock"></i>
+                            </div>
+                            <h3 class="fs-6 fw-bold text-white mb-0">Polite Rate Limiting</h3>
+                        </div>
+                        <p class="small text-secondary mb-0">
+                            Requests are throttled with configurable delays (default 50ms) and capped with strict page budgets to avoid overwhelming lab applications or exhausting system resources.
+                        </p>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card-saas p-3 h-100 card-inner-surface">
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <div class="stat-icon-bubble bubble-purple" style="width: 32px; height: 32px; font-size: 0.9rem;">
+                                <i class="bi bi-eye-slash"></i>
+                            </div>
+                            <h3 class="fs-6 fw-bold text-white mb-0">Data Privacy &amp; Masking</h3>
+                        </div>
+                        <p class="small text-secondary mb-0">
+                            Sensitive authentication headers, tokens, and personal records are never logged in plaintext or exposed unmasked in executive reports.
+                        </p>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card-saas p-3 h-100 card-inner-surface">
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <div class="stat-icon-bubble bubble-red" style="width: 32px; height: 32px; font-size: 0.9rem;">
+                                <i class="bi bi-person-check"></i>
+                            </div>
+                            <h3 class="fs-6 fw-bold text-white mb-0">Manual Verification Protocol</h3>
+                        </div>
+                        <p class="small text-secondary mb-0">
+                            Automated scanners identify potential weaknesses and indicators. Every finding includes reproduction steps for human security analysts to safely verify the issue before production fix deployment.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Local Lab Setup Instructions -->
+        <div class="card-saas mb-5">
+            <div class="card-saas-header mb-3">
+                <h2 class="card-saas-title">
+                    <i class="bi bi-terminal text-info"></i> Local Security Lab Setup Guide
+                </h2>
+            </div>
+            
+            <div class="mb-4">
+                <h3 class="fs-6 fw-bold text-white mb-1">1. WebScanPro Built-in Mock Target Lab (Zero Dependencies)</h3>
+                <p class="small text-secondary mb-2">
+                    Available directly within this application at <code class="text-info">http://127.0.0.1:5001/mock-lab/</code>. Contains safe simulated endpoints for SQL syntax error detection, reflected XSS, missing headers, cookie security, and IDOR testing without requiring Docker!
+                </p>
+            </div>
+
+            <div class="mb-4">
+                <h3 class="fs-6 fw-bold text-white mb-1">2. OWASP Juice Shop (Port 3000)</h3>
+                <div class="p-2 rounded card-inner-surface font-monospace small mb-2">
+                    docker run -d --name juice-shop -p 3000:3000 bkimminich/juice-shop
+                </div>
+                <div class="small text-secondary">Once running, browse to <code class="text-info">http://localhost:3000</code> or launch a scan against it directly from WebScanPro.</div>
+            </div>
+
+            <div>
+                <h3 class="fs-6 fw-bold text-white mb-1">3. Damn Vulnerable Web App (DVWA - Port 4280)</h3>
+                <div class="p-2 rounded card-inner-surface font-monospace small mb-2">
+                    docker run -d --name dvwa -p 4280:80 vulnerables/web-dvwa
+                </div>
+                <div class="small text-secondary">Navigate to <code class="text-info">http://127.0.0.1:4280/setup.php</code> to initialize the database (default credentials: <code class="text-warning">admin / password</code>).</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

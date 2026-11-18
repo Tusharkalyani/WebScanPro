@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block title %}Assessment History — WebScanPro{% endblock %}
+{% block page_title %}Assessment History &amp; Audit Trail{% endblock %}
+
+{% block content %}
+<div class="card-saas mb-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <!-- Filter Form -->
+        <form method="GET" class="d-flex flex-wrap align-items-center gap-2">
+            <select name="target_id" class="form-select-saas" style="width: auto;" onchange="this.form.submit()">
+                <option value="">All Target Hosts</option>
+                {% for t in targets %}
+                <option value="{{ t.id }}" {% if selected_target == t.id %}selected{% endif %}>{{ t.name }} ({{ t.base_url }})</option>
+                {% endfor %}
+            </select>
+
+            <select name="status" class="form-select-saas" style="width: auto;" onchange="this.form.submit()">
+                <option value="">All Statuses</option>
+                <option value="COMPLETED" {% if selected_status == 'COMPLETED' %}selected{% endif %}>Completed</option>
+                <option value="RUNNING" {% if selected_status == 'RUNNING' %}selected{% endif %}>Running</option>
+                <option value="FAILED" {% if selected_status == 'FAILED' %}selected{% endif %}>Failed</option>
+                <option value="CANCELLED" {% if selected_status == 'CANCELLED' %}selected{% endif %}>Cancelled</option>
+            </select>
+
+            {% if selected_target or selected_status %}
+            <a href="{{ url_for('scan.history') }}" class="btn-saas-ghost text-secondary">
+                <i class="bi bi-x-circle me-1"></i> Clear Filters
+            </a>
+            {% endif %}
+        </form>
+
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('scan.compare') }}" class="btn-saas-secondary">
+                <i class="bi bi-arrow-left-right text-info"></i> Compare Two Scans
+            </a>
+            <a href="{{ url_for('scan.new_scan') }}" class="btn-saas-primary">
+                <i class="bi bi-plus-lg"></i> Launch New Scan
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Scans History Table -->
+<div class="card-saas">
+    <div class="card-saas-header mb-3">
+        <h2 class="card-saas-title">
+            <i class="bi bi-shield-check text-info"></i> Recorded Security Assessments ({{ scans|length }})
+        </h2>
+        <div class="input-group" style="max-width: 280px;">
+            <span class="input-group-text bg-transparent border-secondary border-opacity-25 text-muted">
+                <i class="bi bi-search"></i>
+            </span>
+            <input type="text" id="scanHistorySearch" class="form-control form-control-saas" placeholder="Filter by target or ID...">
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table-modern" id="scansTable">
+            <thead>
+                <tr>
+                    <th>Scan</th>
+                    <th>Target Application</th>
+                    <th>Profile</th>
+                    <th>Status</th>
+                    <th>Discovered Findings</th>
+                    <th>Surface Crawled</th>
+                    <th>Date &amp; Time</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if scans %}
+                    {% for s in scans %}
+                    <tr class="scan-row" data-search="#{{ s.id }} {{ s.target.name|lower }} {{ s.target.base_url|lower }} {{ s.status|lower }}">
+                        <td>
+                            <span class="fw-bold font-monospace text-info">#{{ s.id }}</span>
+                            {% if "[DEMO]" in (s.target.name or "") %}
+                            <span class="badge bg-secondary ms-1" style="font-size: 0.65rem;">DEMO</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="fw-semibold text-white">{{ s.target.name }}</div>
+                            <div class="small font-monospace text-secondary text-truncate" style="max-width: 260px;" title="{{ s.target.base_url }}">
+                                {{ s.target.base_url }}
+                            </div>
+                        </td>
+                        <td><span class="chip chip-info font-monospace">{{ s.scan_mode }}</span></td>
+                        <td>
+                            {% if s.status == 'COMPLETED' %}
+                                <span class="chip chip-success"><i class="bi bi-check-circle-fill" style="font-size: 0.45rem;"></i> Completed</span>
+                            {% elif s.status == 'RUNNING' %}
+                                <span class="chip chip-low"><span class="pulse-indicator"></span> Running</span>
+                            {% elif s.status == 'FAILED' %}
+                                <span class="chip chip-critical"><i class="bi bi-x-circle-fill" style="font-size: 0.45rem;"></i> Failed</span>
+                            {% elif s.status == 'CANCELLED' %}
+                                <span class="chip chip-medium"><i class="bi bi-slash-circle" style="font-size: 0.45rem;"></i> Cancelled</span>
+                            {% else %}
+                                <span class="chip chip-info">{{ s.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="fw-bold fs-6 text-white">{{ s.total_findings }}</span>
+                            {% if s.count_critical > 0 %}<span class="chip chip-critical ms-1" style="padding: 1px 5px; font-size: 0.68rem;">{{ s.count_critical }}C</span>{% endif %}
+                            {% if s.count_high > 0 %}<span class="chip chip-high ms-1" style="padding: 1px 5px; font-size: 0.68rem;">{{ s.count_high }}H</span>{% endif %}
+                            {% if s.count_medium > 0 %}<span class="chip chip-medium ms-1" style="padding: 1px 5px; font-size: 0.68rem;">{{ s.count_medium }}M</span>{% endif %}
+                            {% if s.count_low > 0 %}<span class="chip chip-low ms-1" style="padding: 1px 5px; font-size: 0.68rem;">{{ s.count_low }}L</span>{% endif %}
+                        </td>
+                        <td>
+                            <div class="small text-white">{{ s.endpoints_discovered }} pages</div>
+                            <div class="small text-secondary">{{ s.total_requests_sent }} requests</div>
+                        </td>
+                        <td>
+                            <div class="small text-white">{{ s.started_at.strftime('%Y-%m-%d %H:%M') if s.started_at else '---' }}</div>
+                            <div class="small text-secondary">{{ s.duration_seconds|round(1) }}s duration</div>
+                        </td>
+                        <td class="text-end">
+                            <div class="d-inline-flex gap-1">
+                                <a href="{{ url_for('scan.detail', scan_id=s.id) }}" class="btn-saas-secondary py-1 px-2" title="View Detailed Findings">
+                                    <i class="bi bi-eye"></i> View
+                                </a>
+                                <a href="{{ url_for('reports.download_pdf', scan_id=s.id) }}" class="btn-saas-secondary py-1 px-2" title="Download PDF Report">
+                                    <i class="bi bi-file-earmark-pdf text-danger"></i>
+                                </a>
+                                <form method="POST" action="{{ url_for('scan.delete_scan', scan_id=s.id) }}" class="d-inline" onsubmit="return confirm('Permanently delete Scan #{{ s.id }}?');">
+                                    <button type="submit" class="btn-saas-ghost text-danger py-1 px-2" title="Delete Scan">
+                                        <i class="bi bi-trash3"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center py-5 text-muted">
+                            <i class="bi bi-shield-x fs-1 text-muted d-block mb-2"></i>
+                            No scan records found matching filters.
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const searchInput = document.getElementById("scanHistorySearch");
+    if (searchInput) {
+        searchInput.addEventListener("input", function () {
+            const query = this.value.toLowerCase().trim();
+            document.querySelectorAll(".scan-row").forEach(row => {
+                const text = row.getAttribute("data-search") || "";
+                row.style.display = (!query || text.includes(query)) ? "" : "none";
+            });
+        });
+    }
+});
+</script>
+{% endblock %}

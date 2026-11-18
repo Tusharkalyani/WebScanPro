@@ -1,0 +1,586 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard — WebScanPro Enterprise{% endblock %}
+{% block page_title %}Security Posture &amp; Threat Intelligence{% endblock %}
+
+{% block content %}
+<!-- ======================================================================
+     1. Security Posture Hero Section
+     ====================================================================== -->
+<div class="posture-card mb-4" id="posture-section">
+    <div class="row align-items-center g-4">
+        <div class="col-lg-8">
+            <div class="d-flex align-items-center gap-4">
+                <!-- Radial Posture Gauge -->
+                <div class="radial-gauge-wrap">
+                    <svg class="radial-gauge-svg" viewBox="0 0 100 100">
+                        <circle class="gauge-bg" cx="50" cy="50" r="40"></circle>
+                        <circle class="gauge-val" id="postureGaugeCircle" cx="50" cy="50" r="40"
+                                stroke="{% if security_score >= 80 %}#34D399{% elif security_score >= 60 %}#38BDF8{% elif security_score >= 45 %}#FBBF24{% else %}#FB7185{% endif %}"
+                                stroke-dasharray="251.3"
+                                stroke-dashoffset="{{ 251.3 - (251.3 * security_score / 100) }}"></circle>
+                    </svg>
+                    <div class="gauge-center-content">
+                        <div class="gauge-grade" style="color: {% if security_score >= 80 %}#34D399{% elif security_score >= 60 %}#38BDF8{% elif security_score >= 45 %}#FBBF24{% else %}#FB7185{% endif %};">
+                            {{ score_grade }}
+                        </div>
+                        <div class="gauge-score">{{ security_score }}/100</div>
+                    </div>
+                </div>
+
+                <!-- Posture Description & Classification -->
+                <div>
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                        <h2 class="fs-5 fw-bold text-white mb-0">Application Security Posture Score</h2>
+                        <span class="risk-pill" style="
+                            background: {% if security_score >= 80 %}rgba(52, 211, 153, 0.12){% elif security_score >= 60 %}rgba(56, 189, 248, 0.12){% elif security_score >= 45 %}rgba(251, 191, 36, 0.12){% else %}rgba(251, 113, 133, 0.12){% endif %};
+                            color: {% if security_score >= 80 %}#34D399{% elif security_score >= 60 %}#38BDF8{% elif security_score >= 45 %}#FBBF24{% else %}#FB7185{% endif %};
+                            border: 1px solid {% if security_score >= 80 %}rgba(52, 211, 153, 0.25){% elif security_score >= 60 %}rgba(56, 189, 248, 0.25){% elif security_score >= 45 %}rgba(251, 191, 36, 0.25){% else %}rgba(251, 113, 133, 0.25){% endif %};
+                        ">
+                            <span class="status-dot" style="background-color: {% if security_score >= 80 %}#34D399{% elif security_score >= 60 %}#38BDF8{% elif security_score >= 45 %}#FBBF24{% else %}#FB7185{% endif %};"></span>
+                            {{ risk_level }}
+                        </span>
+                    </div>
+
+                    <p class="text-secondary small mb-2" style="max-width: 600px;">
+                        {% if critical_findings > 0 or high_findings > 0 %}
+                            <i class="bi bi-exclamation-triangle text-orange me-1"></i> High priority action required: 
+                            <strong class="text-white">{{ critical_findings }} critical</strong> and 
+                            <strong class="text-white">{{ high_findings }} high</strong> severity vulnerabilities are actively identified across crawled surfaces.
+                        {% elif total_findings > 0 %}
+                            <i class="bi bi-info-circle text-info me-1"></i> 
+                            <strong class="text-white">{{ total_findings }} total findings</strong> recorded. Address medium and low severity defects to improve overall posture.
+                        {% else %}
+                            <i class="bi bi-shield-check text-green me-1"></i> No critical vulnerabilities currently recorded. Baseline attack surfaces are healthy.
+                        {% endif %}
+                    </p>
+
+                    <div class="d-flex flex-wrap gap-2 pt-1">
+                        <span class="chip chip-info"><i class="bi bi-layers"></i> {{ total_findings }} Active Findings</span>
+                        <span class="chip chip-low"><i class="bi bi-hdd-network"></i> {{ total_targets }} Target Hosts</span>
+                        <span class="chip chip-success"><i class="bi bi-check2-circle"></i> Authenticated Labs Validated</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action CTAs -->
+        <div class="col-lg-4 text-lg-end">
+            <div class="d-flex flex-wrap justify-content-lg-end gap-2">
+                <a href="{{ url_for('scan.new_scan') }}" class="btn-saas-primary">
+                    <i class="bi bi-play-circle"></i> Launch New Scan
+                </a>
+                <a href="{{ url_for('vulnerabilities.index') }}" class="btn-saas-secondary">
+                    <i class="bi bi-bug"></i> Review Findings
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ======================================================================
+     2. Four Distinct Statistics Cards
+     ====================================================================== -->
+<div class="row g-3 mb-4">
+    <!-- Card 1: Total Scans -->
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card-clean">
+            <div>
+                <div class="stat-title">Total Scans Conducted</div>
+                <div class="stat-number">{{ total_scans }}</div>
+                <div class="stat-desc">
+                    <span class="text-cyan fw-semibold"><i class="bi bi-activity"></i> Active</span> automated assessments
+                </div>
+            </div>
+            <div class="stat-icon-bubble bubble-blue">
+                <i class="bi bi-shield-shaded"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card 2: Total Vulnerabilities -->
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card-clean">
+            <div>
+                <div class="stat-title">Total Vulnerabilities</div>
+                <div class="stat-number">{{ total_findings }}</div>
+                <div class="stat-desc">
+                    <span class="text-orange fw-semibold">{{ critical_findings + high_findings }} critical/high</span> issues
+                </div>
+            </div>
+            <div class="stat-icon-bubble bubble-red">
+                <i class="bi bi-exclamation-triangle"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card 3: Authorized Targets -->
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card-clean">
+            <div>
+                <div class="stat-title">Authorized Target Hosts</div>
+                <div class="stat-number">{{ total_targets }}</div>
+                <div class="stat-desc">
+                    <span class="text-green fw-semibold"><i class="bi bi-check-circle"></i> Loopback / Labs</span> in scope
+                </div>
+            </div>
+            <div class="stat-icon-bubble bubble-green">
+                <i class="bi bi-bullseye"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card 4: Completed Assessments -->
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card-clean">
+            <div>
+                <div class="stat-title">Completed Assessments</div>
+                <div class="stat-number">{{ completed_scans }}</div>
+                <div class="stat-desc">
+                    {% if running_scans > 0 %}
+                    <span class="text-cyan fw-semibold"><i class="bi bi-arrow-repeat spin"></i> {{ running_scans }} scan running</span>
+                    {% else %}
+                    <span class="text-secondary">Ready for execution</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="stat-icon-bubble bubble-purple">
+                <i class="bi bi-clipboard2-check"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ======================================================================
+     3. Analytics Section: Dual Charts Row
+     ====================================================================== -->
+<div class="row g-3 mb-4">
+    <!-- Left Column: Severity Distribution Donut Chart -->
+    <div class="col-lg-6">
+        <div class="card-saas h-100">
+            <div class="card-saas-header">
+                <div>
+                    <h3 class="card-saas-title"><i class="bi bi-pie-chart text-cyan"></i> Severity Distribution</h3>
+                    <div class="card-saas-subtitle">Categorized breakdown of identified security findings</div>
+                </div>
+                <a href="{{ url_for('vulnerabilities.index') }}" class="btn-saas-ghost">View All &rarr;</a>
+            </div>
+
+            <div class="row align-items-center g-3">
+                <div class="col-sm-6">
+                    <div class="chart-container-wrap">
+                        <canvas id="severityDonutChart"></canvas>
+                    </div>
+                </div>
+                <div class="col-sm-6">
+                    <div class="d-flex flex-column gap-2">
+                        <!-- Critical Filter Link -->
+                        <a href="{{ url_for('vulnerabilities.index') }}?severity=CRITICAL" class="severity-pill-row">
+                            <span class="d-flex align-items-center small fw-semibold text-white">
+                                <span class="sev-bullet" style="background-color: #FB7185;"></span> Critical
+                            </span>
+                            <span class="badge-sev-count chip-critical">{{ critical_findings }}</span>
+                        </a>
+
+                        <!-- High Filter Link -->
+                        <a href="{{ url_for('vulnerabilities.index') }}?severity=HIGH" class="severity-pill-row">
+                            <span class="d-flex align-items-center small fw-semibold text-white">
+                                <span class="sev-bullet" style="background-color: #FB923C;"></span> High
+                            </span>
+                            <span class="badge-sev-count chip-high">{{ high_findings }}</span>
+                        </a>
+
+                        <!-- Medium Filter Link -->
+                        <a href="{{ url_for('vulnerabilities.index') }}?severity=MEDIUM" class="severity-pill-row">
+                            <span class="d-flex align-items-center small fw-semibold text-white">
+                                <span class="sev-bullet" style="background-color: #FBBF24;"></span> Medium
+                            </span>
+                            <span class="badge-sev-count chip-medium">{{ medium_findings }}</span>
+                        </a>
+
+                        <!-- Low Filter Link -->
+                        <a href="{{ url_for('vulnerabilities.index') }}?severity=LOW" class="severity-pill-row">
+                            <span class="d-flex align-items-center small fw-semibold text-white">
+                                <span class="sev-bullet" style="background-color: #38BDF8;"></span> Low
+                            </span>
+                            <span class="badge-sev-count chip-low">{{ low_findings }}</span>
+                        </a>
+
+                        <!-- Info Filter Link -->
+                        <a href="{{ url_for('vulnerabilities.index') }}?severity=INFO" class="severity-pill-row">
+                            <span class="d-flex align-items-center small fw-semibold text-white">
+                                <span class="sev-bullet" style="background-color: #94A3B8;"></span> Informational
+                            </span>
+                            <span class="badge-sev-count chip-info">{{ info_findings }}</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Assessment Activity Trend Line Chart -->
+    <div class="col-lg-6">
+        <div class="card-saas h-100">
+            <div class="card-saas-header">
+                <div>
+                    <h3 class="card-saas-title"><i class="bi bi-graph-up text-cyan"></i> Assessment Activity</h3>
+                    <div class="card-saas-subtitle">Discovered vulnerabilities trend across recent scans</div>
+                </div>
+                <span class="chip chip-info font-monospace" style="font-size: 0.7rem;">Live Telemetry</span>
+            </div>
+
+            <div class="chart-container-wrap">
+                <canvas id="scanTrendChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ======================================================================
+     4. Lower Dashboard: Environments, Hotspots & Recent Scans
+     ====================================================================== -->
+<div class="row g-3 mb-4">
+    <!-- Authorized Lab Environments Card -->
+    <div class="col-lg-7">
+        <div class="card-saas h-100">
+            <div class="card-saas-header">
+                <div>
+                    <h3 class="card-saas-title"><i class="bi bi-hdd-network text-cyan"></i> Authorized Lab Environments</h3>
+                    <div class="card-saas-subtitle">Real-time connectivity to local training targets</div>
+                </div>
+                <a href="{{ url_for('settings.index') }}" class="btn-saas-ghost">Manage Labs &rarr;</a>
+            </div>
+
+            <div class="d-flex flex-column gap-2">
+                {% for key, lab in lab_statuses.items() %}
+                <div class="lab-card-item">
+                    <div>
+                        <div class="lab-title">
+                            {{ lab.name }}
+                            {% if lab.status == 'ONLINE' %}
+                            <span class="chip chip-success py-0 px-2 font-monospace" style="font-size: 0.68rem;">
+                                <span class="status-dot online"></span> {{ lab.response_time_ms }}ms
+                            </span>
+                            {% else %}
+                            <span class="chip chip-critical py-0 px-2 font-monospace" style="font-size: 0.68rem;">
+                                <span class="status-dot offline"></span> OFFLINE
+                            </span>
+                            {% endif %}
+                        </div>
+                        <div class="lab-url">{{ lab.url }}</div>
+                    </div>
+
+                    <div>
+                        {% if lab.status == 'ONLINE' %}
+                        <a href="{{ lab.url }}" target="_blank" class="btn-saas-secondary py-1 px-2" style="font-size: 0.78rem;">
+                            <i class="bi bi-box-arrow-up-right me-1"></i> Open Lab
+                        </a>
+                        {% else %}
+                        <span class="text-muted small">Not Running</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Vulnerability Hotspots Card -->
+    <div class="col-lg-5">
+        <div class="card-saas h-100">
+            <div class="card-saas-header">
+                <div>
+                    <h3 class="card-saas-title"><i class="bi bi-geo-alt text-cyan"></i> Vulnerability Hotspots</h3>
+                    <div class="card-saas-subtitle">Most frequently affected endpoints</div>
+                </div>
+                <span class="chip chip-low font-monospace" style="font-size: 0.7rem;">Surface Density</span>
+            </div>
+
+            {% if top_endpoints %}
+            <div class="d-flex flex-column gap-2">
+                {% for ep in top_endpoints %}
+                <div class="d-flex align-items-center justify-content-between p-2 rounded card-inner-surface">
+                    <div class="text-truncate me-2" style="max-width: 250px;">
+                        <a href="{{ url_for('vulnerabilities.index') }}?q={{ ep[0] }}" class="font-monospace text-cyan text-decoration-none small" title="{{ ep[0] }}">
+                            {{ ep[0] }}
+                        </a>
+                    </div>
+                    <span class="chip chip-high">{{ ep[1] }} issues</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-4 text-muted small">
+                <i class="bi bi-shield-check text-green fs-3 d-block mb-1"></i>
+                No endpoint vulnerabilities recorded yet.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- ======================================================================
+     5. Recent Security Assessments Table
+     ====================================================================== -->
+<div class="card-saas">
+    <div class="card-saas-header">
+        <div>
+            <h3 class="card-saas-title"><i class="bi bi-clock-history text-cyan"></i> Recent Security Assessments</h3>
+            <div class="card-saas-subtitle">Latest automated vulnerability test results</div>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('scan.compare') }}" class="btn-saas-secondary py-1 px-2" style="font-size: 0.8rem;">
+                <i class="bi bi-arrow-left-right me-1"></i> Compare Scans
+            </a>
+            <a href="{{ url_for('scan.history') }}" class="btn-saas-ghost" style="font-size: 0.8rem;">View All History &rarr;</a>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table-modern">
+            <thead>
+                <tr>
+                    <th>Scan ID</th>
+                    <th>Target Application</th>
+                    <th>Profile</th>
+                    <th>Status</th>
+                    <th>Findings Breakdown</th>
+                    <th>Surface Crawled</th>
+                    <th>Duration</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if recent_scans %}
+                    {% for scan in recent_scans %}
+                    <tr>
+                        <td>
+                            <span class="fw-bold text-cyan font-monospace">#{{ scan.id }}</span>
+                        </td>
+                        <td>
+                            <div class="fw-semibold text-white">{{ scan.target.name }}</div>
+                            <div class="small font-monospace text-muted text-truncate" style="max-width: 220px;" title="{{ scan.target.base_url }}">
+                                {{ scan.target.base_url }}
+                            </div>
+                        </td>
+                        <td>
+                            <span class="chip chip-info font-monospace" style="font-size: 0.72rem;">{{ scan.scan_mode }}</span>
+                        </td>
+                        <td>
+                            {% if scan.status == 'COMPLETED' %}
+                                <span class="chip chip-success"><i class="bi bi-check-circle"></i> Completed</span>
+                            {% elif scan.status == 'RUNNING' %}
+                                <span class="chip chip-low"><i class="bi bi-arrow-repeat spin"></i> Running</span>
+                            {% elif scan.status == 'FAILED' %}
+                                <span class="chip chip-critical"><i class="bi bi-x-circle"></i> Failed</span>
+                            {% else %}
+                                <span class="chip chip-info">{{ scan.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="fw-bold text-white me-2">{{ scan.total_findings }}</span>
+                            {% if scan.count_critical > 0 %}
+                            <span class="chip chip-critical py-0 px-1 font-monospace" style="font-size: 0.68rem;">{{ scan.count_critical }}C</span>
+                            {% endif %}
+                            {% if scan.count_high > 0 %}
+                            <span class="chip chip-high py-0 px-1 font-monospace" style="font-size: 0.68rem;">{{ scan.count_high }}H</span>
+                            {% endif %}
+                            {% if scan.count_medium > 0 %}
+                            <span class="chip chip-medium py-0 px-1 font-monospace" style="font-size: 0.68rem;">{{ scan.count_medium }}M</span>
+                            {% endif %}
+                            {% if scan.count_low > 0 %}
+                            <span class="chip chip-low py-0 px-1 font-monospace" style="font-size: 0.68rem;">{{ scan.count_low }}L</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="small text-secondary">{{ scan.endpoints_discovered }} pages</span>
+                        </td>
+                        <td>
+                            <span class="small text-muted font-monospace">{{ scan.duration_seconds|round(1) }}s</span>
+                        </td>
+                        <td class="text-end">
+                            <div class="d-inline-flex gap-1">
+                                <a href="{{ url_for('scan.detail', scan_id=scan.id) }}" class="btn-saas-secondary py-1 px-2" style="font-size: 0.78rem;" title="View Details">
+                                    <i class="bi bi-eye"></i> View
+                                </a>
+                                <a href="{{ url_for('reports.download_pdf', scan_id=scan.id) }}" class="btn-saas-ghost py-1 px-2" style="font-size: 0.78rem;" title="Download PDF">
+                                    <i class="bi bi-file-earmark-pdf"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4 text-muted">
+                            No scans recorded yet. <a href="{{ url_for('scan.new_scan') }}" class="text-cyan text-decoration-none">Launch your first security scan</a>.
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    // -------------------------------------------------------------
+    // 1. Severity Distribution Donut Chart (Chart.js)
+    // -------------------------------------------------------------
+    const donutCtx = document.getElementById("severityDonutChart");
+    if (donutCtx) {
+        const crit = {{ critical_findings }};
+        const high = {{ high_findings }};
+        const med = {{ medium_findings }};
+        const low = {{ low_findings }};
+        const info = {{ info_findings }};
+        const total = crit + high + med + low + info;
+
+        new Chart(donutCtx, {
+            type: "doughnut",
+            data: {
+                labels: ["Critical", "High", "Medium", "Low", "Informational"],
+                datasets: [{
+                    data: total === 0 ? [0, 0, 0, 0, 1] : [crit, high, med, low, info],
+                    backgroundColor: total === 0 ? ["#334155"] : [
+                        "#FB7185", // Critical
+                        "#FB923C", // High
+                        "#FBBF24", // Medium
+                        "#38BDF8", // Low
+                        "#94A3B8"  // Info
+                    ],
+                    borderWidth: 0,
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: "72%",
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: "#151F35",
+                        titleColor: "#F8FAFC",
+                        bodyColor: "#94A3B8",
+                        borderColor: "rgba(255, 255, 255, 0.08)",
+                        borderWidth: 1,
+                        padding: 10,
+                        displayColors: true,
+                        callbacks: {
+                            label: function (context) {
+                                const val = context.raw || 0;
+                                const pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
+                                return ` ${context.label}: ${val} (${pct}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // -------------------------------------------------------------
+    // 2. Assessment Activity Trend Line Chart (Chart.js)
+    // -------------------------------------------------------------
+    const trendCtx = document.getElementById("scanTrendChart");
+    if (trendCtx) {
+        const labels = {{ trend_labels|tojson }};
+        const counts = {{ trend_findings_count|tojson }};
+        const highCounts = {{ trend_high_count|tojson }};
+
+        const ctx = trendCtx.getContext("2d");
+        const gradient = ctx.createLinearGradient(0, 0, 0, 200);
+        gradient.addColorStop(0, "rgba(56, 189, 248, 0.28)");
+        gradient.addColorStop(1, "rgba(56, 189, 248, 0.0)");
+
+        const isCurrentLight = document.documentElement.getAttribute("data-bs-theme") === "light";
+
+        const trendChart = new Chart(trendCtx, {
+            type: "line",
+            data: {
+                labels: labels.length > 0 ? labels : ["No Scans"],
+                datasets: [
+                    {
+                        label: "Total Findings",
+                        data: counts.length > 0 ? counts : [0],
+                        borderColor: "#38BDF8",
+                        backgroundColor: gradient,
+                        fill: true,
+                        tension: 0.35,
+                        borderWidth: 2.2,
+                        pointBackgroundColor: "#38BDF8",
+                        pointBorderColor: "#0B1020",
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    },
+                    {
+                        label: "High Severity",
+                        data: highCounts.length > 0 ? highCounts : [0],
+                        borderColor: "#FB923C",
+                        backgroundColor: "transparent",
+                        borderDash: [4, 4],
+                        borderWidth: 1.8,
+                        pointRadius: 3,
+                        tension: 0.35
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: "top",
+                        align: "end",
+                        labels: {
+                            color: isCurrentLight ? "#0F172A" : "#94A3B8",
+                            boxWidth: 10,
+                            boxHeight: 10,
+                            font: { size: 11, family: "Inter" }
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: isCurrentLight ? "#FFFFFF" : "#151F35",
+                        titleColor: isCurrentLight ? "#0F172A" : "#F8FAFC",
+                        bodyColor: isCurrentLight ? "#475569" : "#94A3B8",
+                        borderColor: isCurrentLight ? "#CBD5E1" : "rgba(255, 255, 255, 0.08)",
+                        borderWidth: 1,
+                        padding: 10
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: isCurrentLight ? "#475569" : "#64748B", font: { size: 11 } }
+                    },
+                    y: {
+                        grid: { color: isCurrentLight ? "rgba(0, 0, 0, 0.06)" : "rgba(255, 255, 255, 0.04)" },
+                        ticks: { color: isCurrentLight ? "#475569" : "#64748B", font: { size: 11 }, precision: 0 },
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+
+        window.addEventListener("themeChanged", function (e) {
+            const isLight = e.detail.theme === "light";
+            trendChart.options.plugins.legend.labels.color = isLight ? "#0F172A" : "#94A3B8";
+            trendChart.options.plugins.tooltip.backgroundColor = isLight ? "#FFFFFF" : "#151F35";
+            trendChart.options.plugins.tooltip.titleColor = isLight ? "#0F172A" : "#F8FAFC";
+            trendChart.options.plugins.tooltip.bodyColor = isLight ? "#475569" : "#94A3B8";
+            trendChart.options.plugins.tooltip.borderColor = isLight ? "#CBD5E1" : "rgba(255, 255, 255, 0.08)";
+            trendChart.options.scales.x.ticks.color = isLight ? "#475569" : "#64748B";
+            trendChart.options.scales.y.ticks.color = isLight ? "#475569" : "#64748B";
+            trendChart.options.scales.y.grid.color = isLight ? "rgba(0, 0, 0, 0.06)" : "rgba(255, 255, 255, 0.04)";
+            trendChart.update();
+        });
+    }
+});
+</script>
+{% endblock %}

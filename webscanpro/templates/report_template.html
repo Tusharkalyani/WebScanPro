@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Assessment Report — Scan #{{ scan.id }} — WebScanPro</title>
+    <style>
+        :root {
+            --primary: #0284c7;
+            --dark: #0f172a;
+            --light: #f8fafc;
+            --border: #cbd5e1;
+            --crit: #dc2626;
+            --high: #ea580c;
+            --med: #d97706;
+            --low: #2563eb;
+            --info: #64748b;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            line-height: 1.5;
+            color: #1e293b;
+            background: #fff;
+            padding: 2.5rem;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .header {
+            border-bottom: 2px solid var(--primary);
+            padding-bottom: 1rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+        .title { font-size: 1.8rem; font-weight: 700; color: var(--dark); margin: 0; }
+        .subtitle { font-size: 0.95rem; color: var(--primary); margin-top: 0.25rem; font-weight: 500; }
+        .btn-print {
+            padding: 0.5rem 1rem;
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        @media print {
+            .btn-print { display: none; }
+            body { padding: 0; }
+        }
+        .table-meta {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1.5rem;
+            font-size: 0.9rem;
+        }
+        .table-meta th, .table-meta td {
+            border: 1px solid var(--border);
+            padding: 0.5rem 0.75rem;
+            text-align: left;
+        }
+        .table-meta th { background: #f1f5f9; width: 22%; }
+        
+        .severity-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        .sev-box {
+            padding: 0.75rem 0.25rem;
+            border-radius: 4px;
+            color: #fff;
+        }
+        .sev-box .val { font-size: 1.5rem; font-weight: 700; }
+        .sev-box .lbl { font-size: 0.75rem; text-transform: uppercase; font-weight: 600; }
+
+        .finding-card {
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 1.25rem;
+            margin-bottom: 1.5rem;
+            page-break-inside: avoid;
+        }
+        .finding-title {
+            font-size: 1.15rem;
+            font-weight: 700;
+            margin: 0 0 0.5rem 0;
+            display: flex;
+            justify-content: space-between;
+        }
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #fff;
+        }
+        .evidence-code {
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 0.75rem;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.8rem;
+            white-space: pre-wrap;
+            word-break: break-all;
+            margin: 0.5rem 0;
+        }
+        .disclaimer {
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            padding: 1rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            color: #64748b;
+            margin-top: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div>
+            <h1 class="title">WebScanPro — Security Assessment Report</h1>
+            <div class="subtitle">Dynamic Application Security Testing (DAST) Assessment Results</div>
+        </div>
+        <button class="btn-print" onclick="window.print()">Print / Save as PDF</button>
+    </div>
+
+    <!-- Metadata Table -->
+    <table class="table-meta">
+        <tr>
+            <th>Target URL</th>
+            <td>{{ scan.target.base_url }}</td>
+            <th>Scan ID</th>
+            <td>#{{ scan.id }}</td>
+        </tr>
+        <tr>
+            <th>Assessment Date</th>
+            <td>{{ scan.started_at.strftime('%Y-%m-%d %H:%M:%S UTC') if scan.started_at else '---' }}</td>
+            <th>Assessment Mode</th>
+            <td>{{ scan.scan_mode }}</td>
+        </tr>
+        <tr>
+            <th>Endpoints Crawled</th>
+            <td>{{ scan.endpoints_discovered }} pages</td>
+            <th>Requests Sent</th>
+            <td>{{ scan.total_requests_sent }} requests</td>
+        </tr>
+        <tr>
+            <th>Execution Duration</th>
+            <td>{{ scan.duration_seconds|round(2) }} seconds</td>
+            <th>Assessment Status</th>
+            <td><b>{{ scan.status }}</b></td>
+        </tr>
+    </table>
+
+    <!-- Severity Distribution Grid -->
+    <h3>Executive Severity Summary</h3>
+    <div class="severity-grid">
+        <div class="sev-box" style="background: var(--crit);">
+            <div class="val">{{ scan.count_critical or 0 }}</div>
+            <div class="lbl">Critical</div>
+        </div>
+        <div class="sev-box" style="background: var(--high);">
+            <div class="val">{{ scan.count_high or 0 }}</div>
+            <div class="lbl">High</div>
+        </div>
+        <div class="sev-box" style="background: var(--med);">
+            <div class="val">{{ scan.count_medium or 0 }}</div>
+            <div class="lbl">Medium</div>
+        </div>
+        <div class="sev-box" style="background: var(--low);">
+            <div class="val">{{ scan.count_low or 0 }}</div>
+            <div class="lbl">Low</div>
+        </div>
+        <div class="sev-box" style="background: var(--info);">
+            <div class="val">{{ scan.count_info or 0 }}</div>
+            <div class="lbl">Info</div>
+        </div>
+        <div class="sev-box" style="background: var(--dark);">
+            <div class="val">{{ scan.total_findings }}</div>
+            <div class="lbl">Total Issues</div>
+        </div>
+    </div>
+
+    <!-- Technical Findings -->
+    <h3>Detailed Technical Findings</h3>
+    {% if findings %}
+        {% for f in findings %}
+        <div class="finding-card">
+            <div class="finding-title">
+                <span>#{{ loop.index }}. {{ f.vuln_type }}</span>
+                <span class="badge" style="background: {% if f.severity == 'CRITICAL' %}var(--crit){% elif f.severity == 'HIGH' %}var(--high){% elif f.severity == 'MEDIUM' %}var(--med){% elif f.severity == 'LOW' %}var(--low){% else %}var(--info){% endif %};">
+                    {{ f.severity }}
+                </span>
+            </div>
+            <table class="table-meta" style="margin-bottom: 0.75rem;">
+                <tr>
+                    <th style="width: 20%;">Endpoint</th>
+                    <td><code>{{ f.endpoint }}</code></td>
+                </tr>
+                <tr>
+                    <th>Parameter & Method</th>
+                    <td><code>{{ f.parameter }}</code> ({{ f.http_method }})</td>
+                </tr>
+                <tr>
+                    <th>OWASP Category & CWE</th>
+                    <td>{{ f.category }} | <b>{{ f.cwe_id }}</b></td>
+                </tr>
+            </table>
+
+            <div style="margin-bottom: 0.5rem;">
+                <strong>Technical Explanation:</strong>
+                <p style="margin: 0.25rem 0; font-size: 0.9rem; color: #334155;">{{ f.explanation }}</p>
+            </div>
+
+            {% if f.evidence %}
+            <div>
+                <strong>Recorded Evidence:</strong>
+                <div class="evidence-code">{{ f.evidence }}</div>
+            </div>
+            {% endif %}
+
+            <div style="margin-top: 0.5rem;">
+                <strong>Remediation Guidance:</strong>
+                <p style="margin: 0.25rem 0; font-size: 0.9rem; color: #047857;">{{ f.remediation }}</p>
+            </div>
+
+            {% if f.manual_verification_steps %}
+            <div style="margin-top: 0.5rem; font-size: 0.85rem; color: #475569;">
+                <strong>Manual Verification Steps:</strong>
+                <div>{{ f.manual_verification_steps }}</div>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    {% else %}
+        <p><i>No security weaknesses or vulnerabilities were detected during this scan.</i></p>
+    {% endif %}
+
+    <div class="disclaimer">
+        <strong>Assessment Limitations & Legal Disclaimer:</strong>
+        WebScanPro operates exclusively on authorized local target applications and labs.
+        Automated vulnerability assessment tools provide dynamic heuristic observations, which must be
+        manually verified by a qualified application security engineer before implementing architecture changes.
+        This report constitutes point-in-time security testing evidence and does not guarantee that other undetected
+        vulnerabilities are absent.
+    </div>
+</body>
+</html>

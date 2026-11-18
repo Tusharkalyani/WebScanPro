@@ -1,0 +1,471 @@
+{% extends "base.html" %}
+
+{% block title %}Assessment Console #{{ scan.id }} — WebScanPro{% endblock %}
+{% block page_title %}Assessment Console #{{ scan.id }}{% endblock %}
+
+{% block content %}
+<!-- Scan Summary Header Card -->
+<div class="card-saas mb-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                <span class="fs-5 fw-bold text-white">Scan #{{ scan.id }}</span>
+                <span id="scanStatusBadge">
+                    {% if scan.status == 'COMPLETED' %}
+                        <span class="chip chip-success"><i class="bi bi-check-circle-fill me-1"></i> Completed</span>
+                    {% elif scan.status == 'RUNNING' %}
+                        <span class="chip chip-low"><span class="pulse-indicator me-1"></span> Running Assessment</span>
+                    {% elif scan.status == 'FAILED' %}
+                        <span class="chip chip-critical"><i class="bi bi-x-circle-fill me-1"></i> Failed</span>
+                    {% elif scan.status == 'CANCELLED' %}
+                        <span class="chip chip-medium"><i class="bi bi-slash-circle me-1"></i> Cancelled</span>
+                    {% else %}
+                        <span class="chip chip-info">{{ scan.status }}</span>
+                    {% endif %}
+                </span>
+                <span class="chip chip-low font-monospace">{{ scan.scan_mode }} Mode</span>
+                {% if "[DEMO]" in (scan.target.name or "") %}
+                <span class="badge bg-secondary" style="font-size: 0.68rem;">DEMO DATA</span>
+                {% endif %}
+            </div>
+            <div class="text-secondary font-monospace small">
+                Target: <a href="{{ scan.target.base_url }}" target="_blank" class="text-info text-decoration-none fw-semibold">{{ scan.target.base_url }}</a>
+                <span class="mx-2 opacity-50">|</span>
+                <span id="headerEngineTag" class="text-muted"><i class="bi bi-cpu me-1"></i> Dynamic Engine Active</span>
+            </div>
+        </div>
+
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            {% if scan.status == 'RUNNING' %}
+            <button class="btn btn-sm btn-outline-warning" id="btnCancelScan" onclick="cancelCurrentScan({{ scan.id }})">
+                <i class="bi bi-stop-circle me-1"></i> Cancel Scan
+            </button>
+            {% endif %}
+            <a href="{{ url_for('reports.download_pdf', scan_id=scan.id) }}" class="btn-saas-secondary" id="btnDownloadPdf">
+                <i class="bi bi-file-earmark-pdf text-danger"></i> Download PDF
+            </a>
+            <a href="{{ url_for('reports.view_html', scan_id=scan.id) }}" target="_blank" class="btn-saas-secondary" id="btnViewHtml">
+                <i class="bi bi-box-arrow-up-right text-info"></i> HTML Report
+            </a>
+            <a href="{{ url_for('scan.new_scan') }}" class="btn-saas-primary">
+                <i class="bi bi-plus-lg"></i> New Scan
+            </a>
+            <form method="POST" action="{{ url_for('scan.delete_scan', scan_id=scan.id) }}" class="d-inline" onsubmit="return confirm('Are you sure you want to permanently delete Scan #{{ scan.id }}? All findings and reports will be removed.');">
+                <button type="submit" class="btn-saas-ghost text-danger" title="Permanently Delete Scan">
+                    <i class="bi bi-trash3"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Pipeline Stage Stepper -->
+    <div class="pipeline-stepper" id="pipelineStepper">
+        <div class="pipeline-step {% if scan.status in ('RUNNING', 'COMPLETED') %}complete{% else %}active{% endif %}" id="step1">
+            <div class="pipeline-node"><i class="bi bi-shield-check"></i></div>
+            <div class="pipeline-label">Target Handshake</div>
+        </div>
+        <div class="pipeline-step {% if scan.status == 'COMPLETED' or (scan.status == 'RUNNING' and scan.endpoints_discovered > 0) %}complete{% elif scan.status == 'RUNNING' %}active{% endif %}" id="step2">
+            <div class="pipeline-node"><i class="bi bi-diagram-3"></i></div>
+            <div class="pipeline-label">Surface Crawl</div>
+        </div>
+        <div class="pipeline-step {% if scan.status == 'COMPLETED' %}complete{% elif scan.status == 'RUNNING' and scan.endpoints_discovered > 0 %}active{% endif %}" id="step3">
+            <div class="pipeline-node"><i class="bi bi-radioactive"></i></div>
+            <div class="pipeline-label">Security Auditing</div>
+        </div>
+        <div class="pipeline-step {% if scan.status == 'COMPLETED' %}complete{% endif %}" id="step4">
+            <div class="pipeline-node"><i class="bi bi-file-earmark-check"></i></div>
+            <div class="pipeline-label">Report Engine</div>
+        </div>
+    </div>
+
+    <!-- Dynamic Progress Bar -->
+    <div class="mt-3">
+        <div class="d-flex justify-content-between small text-muted mb-1">
+            <span id="progressText" class="d-flex align-items-center gap-1">
+                {% if scan.status == 'COMPLETED' %}
+                    <i class="bi bi-check-circle-fill text-success"></i> Dynamic Assessment Finished Successfully
+                {% elif scan.status == 'RUNNING' %}
+                    <i class="bi bi-arrow-repeat text-info spin"></i> Dynamic Security Testing in Progress...
+                {% elif scan.status == 'CANCELLED' %}
+                    <i class="bi bi-slash-circle text-warning"></i> Assessment Cancelled
+                {% else %}
+                    {{ scan.status }}
+                {% endif %}
+            </span>
+            <span id="progressPercent" class="fw-bold text-info font-monospace">
+                {% if scan.status == 'COMPLETED' %}100%{% elif scan.status == 'RUNNING' %}50%{% else %}0%{% endif %}
+            </span>
+        </div>
+        <div class="progress" style="height: 6px; background-color: rgba(255, 255, 255, 0.05); border-radius: 999px; overflow: hidden;">
+            <div id="scanProgressBar" class="progress-bar {% if scan.status == 'RUNNING' %}progress-bar-striped progress-bar-animated bg-info{% elif scan.status == 'COMPLETED' %}bg-success{% else %}bg-secondary{% endif %}"
+                 role="progressbar"
+                 style="width: {% if scan.status == 'COMPLETED' %}100%{% elif scan.status == 'RUNNING' %}50%{% else %}10%{% endif %};">
+            </div>
+        </div>
+    </div>
+
+    <!-- Live Telemetry Counters -->
+    <div class="row g-3 mt-3 pt-3 border-top border-secondary border-opacity-10 text-center">
+        <div class="col-md-3 col-6">
+            <div class="text-uppercase fw-semibold" style="font-size: 0.72rem; color: var(--text-dim); letter-spacing: 0.06em;">Elapsed Duration</div>
+            <div class="fs-4 fw-bold text-white font-monospace mt-1" id="statDuration">{{ scan.duration_seconds|round(1) }}s</div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="text-uppercase fw-semibold" style="font-size: 0.72rem; color: var(--text-dim); letter-spacing: 0.06em;">HTTP Requests Sent</div>
+            <div class="fs-4 fw-bold text-white font-monospace mt-1" id="statRequests">{{ scan.total_requests_sent }}</div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="text-uppercase fw-semibold" style="font-size: 0.72rem; color: var(--text-dim); letter-spacing: 0.06em;">Endpoints Indexed</div>
+            <div class="fs-4 fw-bold text-white font-monospace mt-1" id="statEndpoints">{{ scan.endpoints_discovered }}</div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="text-uppercase fw-semibold" style="font-size: 0.72rem; color: var(--text-dim); letter-spacing: 0.06em;">Forms Discovered</div>
+            <div class="fs-4 fw-bold text-white font-monospace mt-1" id="statForms">{{ scan.forms_discovered }}</div>
+        </div>
+    </div>
+</div>
+
+<!-- Severity Metric Pills -->
+<div class="row g-2 mb-4">
+    <div class="col">
+        <div class="stat-card-clean p-2 flex-column text-center justify-content-center" style="border-left: 3px solid var(--color-red);">
+            <div class="small fw-bold text-danger text-uppercase" style="font-size: 0.72rem; letter-spacing: 0.05em;"><i class="bi bi-circle-fill me-1" style="font-size: 0.45rem;"></i> Critical</div>
+            <div class="fs-4 fw-bold text-danger font-monospace mt-1" id="countCritical">{{ scan.count_critical or 0 }}</div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="stat-card-clean p-2 flex-column text-center justify-content-center" style="border-left: 3px solid var(--color-orange);">
+            <div class="small fw-bold text-uppercase" style="color: var(--color-orange); font-size: 0.72rem; letter-spacing: 0.05em;"><i class="bi bi-circle-fill me-1" style="font-size: 0.45rem;"></i> High</div>
+            <div class="fs-4 fw-bold font-monospace mt-1" style="color: var(--color-orange);" id="countHigh">{{ scan.count_high or 0 }}</div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="stat-card-clean p-2 flex-column text-center justify-content-center" style="border-left: 3px solid var(--color-yellow);">
+            <div class="small fw-bold text-warning text-uppercase" style="font-size: 0.72rem; letter-spacing: 0.05em;"><i class="bi bi-circle-fill me-1" style="font-size: 0.45rem;"></i> Medium</div>
+            <div class="fs-4 fw-bold text-warning font-monospace mt-1" id="countMedium">{{ scan.count_medium or 0 }}</div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="stat-card-clean p-2 flex-column text-center justify-content-center" style="border-left: 3px solid var(--color-blue);">
+            <div class="small fw-bold text-info text-uppercase" style="font-size: 0.72rem; letter-spacing: 0.05em;"><i class="bi bi-circle-fill me-1" style="font-size: 0.45rem;"></i> Low</div>
+            <div class="fs-4 fw-bold text-info font-monospace mt-1" id="countLow">{{ scan.count_low or 0 }}</div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="stat-card-clean p-2 flex-column text-center justify-content-center" style="border-left: 3px solid var(--text-muted);">
+            <div class="small fw-bold text-secondary text-uppercase" style="font-size: 0.72rem; letter-spacing: 0.05em;"><i class="bi bi-circle-fill me-1" style="font-size: 0.45rem;"></i> Info</div>
+            <div class="fs-4 fw-bold text-secondary font-monospace mt-1" id="countInfo">{{ scan.count_info or 0 }}</div>
+        </div>
+    </div>
+</div>
+
+<!-- Navigation Tabs -->
+<ul class="nav nav-tabs-saas mb-3" id="scanTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="findings-tab" data-bs-toggle="tab" data-bs-target="#tabFindings" type="button" role="tab">
+            <i class="bi bi-shield-exclamation me-1"></i> Security Findings (<span id="findingsTabCount">{{ findings|length }}</span>)
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="endpoints-tab" data-bs-toggle="tab" data-bs-target="#tabEndpoints" type="button" role="tab">
+            <i class="bi bi-diagram-3 me-1"></i> Discovered Endpoints (<span id="endpointsTabCount">{{ endpoints|length }}</span>)
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="console-tab" data-bs-toggle="tab" data-bs-target="#tabConsole" type="button" role="tab">
+            <i class="bi bi-terminal me-1"></i> Live Activity Logs
+        </button>
+    </li>
+</ul>
+
+<!-- Tab Contents -->
+<div class="tab-content" id="scanTabsContent">
+    <!-- Findings Tab -->
+    <div class="tab-pane fade show active" id="tabFindings" role="tabpanel">
+        <div class="card-saas">
+            <!-- Filter Box inside Findings -->
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                <div class="input-group" style="max-width: 320px;">
+                    <span class="input-group-text bg-transparent border-secondary border-opacity-25 text-muted">
+                        <i class="bi bi-search"></i>
+                    </span>
+                    <input type="text" id="findingQuickFilter" class="form-control form-control-saas" placeholder="Quick filter findings by keyword...">
+                </div>
+                <span class="text-secondary small">Showing <span id="filteredFindingsCount" class="text-white fw-bold">{{ findings|length }}</span> of {{ findings|length }} issues</span>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table-modern" id="findingsTable">
+                    <thead>
+                        <tr>
+                            <th>Severity</th>
+                            <th>Vulnerability Type</th>
+                            <th>OWASP Category</th>
+                            <th>Endpoint / Param</th>
+                            <th>Status</th>
+                            <th>Confidence</th>
+                            <th class="text-end">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="findingsTableBody">
+                        {% if findings %}
+                            {% for f in findings %}
+                            <tr class="finding-row" data-search="{{ f.vuln_type|lower }} {{ f.endpoint|lower }} {{ f.parameter|lower }} {{ f.severity|lower }}">
+                                <td>
+                                    {% if f.severity == 'CRITICAL' %}
+                                    <span class="chip chip-critical"><i class="bi bi-circle-fill" style="font-size: 0.45rem;"></i> Critical</span>
+                                    {% elif f.severity == 'HIGH' %}
+                                    <span class="chip chip-high"><i class="bi bi-circle-fill" style="font-size: 0.45rem;"></i> High</span>
+                                    {% elif f.severity == 'MEDIUM' %}
+                                    <span class="chip chip-medium"><i class="bi bi-circle-fill" style="font-size: 0.45rem;"></i> Medium</span>
+                                    {% elif f.severity == 'LOW' %}
+                                    <span class="chip chip-low"><i class="bi bi-circle-fill" style="font-size: 0.45rem;"></i> Low</span>
+                                    {% else %}
+                                    <span class="chip chip-info"><i class="bi bi-circle-fill" style="font-size: 0.45rem;"></i> Info</span>
+                                    {% endif %}
+                                </td>
+                                <td class="fw-semibold text-white">{{ f.vuln_type }}</td>
+                                <td><span class="small text-secondary">{{ f.category }}</span></td>
+                                <td>
+                                    <div class="text-truncate font-monospace small text-info" style="max-width: 240px;" title="{{ f.endpoint }}">
+                                        {{ f.endpoint }}
+                                    </div>
+                                    <div class="small text-muted">Param: <code>{{ f.parameter }}</code> ({{ f.http_method }})</div>
+                                </td>
+                                <td><span class="chip chip-info">{{ f.status }}</span></td>
+                                <td>
+                                    <span class="chip {% if f.confidence == 'CONFIRMED' %}chip-critical{% elif f.confidence == 'HIGH' %}chip-high{% elif f.confidence == 'MEDIUM' %}chip-medium{% else %}chip-info{% endif %}">
+                                        {{ f.confidence }}
+                                    </span>
+                                </td>
+                                <td class="text-end">
+                                    <a href="{{ url_for('vulnerabilities.detail', finding_id=f.id) }}" class="btn-saas-secondary py-1 px-2">
+                                        <i class="bi bi-search"></i> Inspect
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="7" class="text-center py-5 text-muted">
+                                    <i class="bi bi-shield-check fs-1 text-info d-block mb-2"></i>
+                                    No vulnerabilities recorded for this scan session yet.
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Endpoints Tab -->
+    <div class="tab-pane fade" id="tabEndpoints" role="tabpanel">
+        <div class="card-saas">
+            <div class="table-responsive">
+                <table class="table-modern">
+                    <thead>
+                        <tr>
+                            <th>Method</th>
+                            <th>Status</th>
+                            <th>Path</th>
+                            <th>Content Type</th>
+                            <th>Forms</th>
+                            <th>Parameters</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if endpoints %}
+                            {% for ep in endpoints %}
+                            <tr>
+                                <td><span class="chip chip-info font-monospace">{{ ep.method }}</span></td>
+                                <td>
+                                    <span class="chip {% if ep.status_code == 200 %}chip-success{% else %}chip-medium{% endif %} font-monospace">
+                                        {{ ep.status_code or '---' }}
+                                    </span>
+                                </td>
+                                <td class="font-monospace small text-info text-truncate" style="max-width: 340px;" title="{{ ep.url }}">
+                                    {{ ep.path }}
+                                </td>
+                                <td class="small text-secondary">{{ ep.content_type.split(';')[0] if ep.content_type else 'N/A' }}</td>
+                                <td><span class="badge bg-secondary bg-opacity-25 text-white">{{ ep.forms|length }} forms</span></td>
+                                <td><span class="badge bg-secondary bg-opacity-25 text-white">{{ ep.params|length }} params</span></td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center py-5 text-muted">
+                                    No endpoints indexed yet.
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Live Console Logs Tab -->
+    <div class="tab-pane fade" id="tabConsole" role="tabpanel">
+        <div class="card-saas">
+            <div class="card-saas-header mb-3">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="status-dot dot-online"></span>
+                    <span class="card-saas-title" style="font-size: 0.9rem;">Real-time Scanner Telemetry Stream</span>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button" class="btn-saas-secondary py-1 px-2" id="btnCopyLogs" title="Copy console logs to clipboard">
+                        <i class="bi bi-clipboard me-1"></i> Copy Logs
+                    </button>
+                    <button type="button" class="btn-saas-secondary py-1 px-2 text-danger" id="btnClearLogs" title="Clear console view">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="console-box" id="consoleLogContainer">
+                {% if logs %}
+                    {% for l in logs|reverse %}
+                    <div class="console-entry {{ l.level }}">
+                        <span class="text-secondary font-monospace">[{{ l.timestamp.strftime('%H:%M:%S') if l.timestamp else '' }}]</span>
+                        <span class="fw-bold font-monospace">[{{ l.level }}]</span>
+                        <span>{{ l.message }}</span>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="console-entry INFO">Console initialized. Awaiting engine events...</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const scanId = {{ scan.id }};
+    let currentStatus = "{{ scan.status }}";
+    let lastLogId = {% if logs %}{{ logs[0].id if logs else 0 }}{% else %}0{% endif %};
+
+    // Auto-scroll console to bottom
+    const consoleBox = document.getElementById("consoleLogContainer");
+    if (consoleBox) consoleBox.scrollTop = consoleBox.scrollHeight;
+
+    // Filter Findings
+    const filterInput = document.getElementById("findingQuickFilter");
+    if (filterInput) {
+        filterInput.addEventListener("input", function () {
+            const query = this.value.toLowerCase().trim();
+            const rows = document.querySelectorAll(".finding-row");
+            let visibleCount = 0;
+            rows.forEach(row => {
+                const text = row.getAttribute("data-search") || "";
+                if (!query || text.includes(query)) {
+                    row.style.display = "";
+                    visibleCount++;
+                } else {
+                    row.style.display = "none";
+                }
+            });
+            const counter = document.getElementById("filteredFindingsCount");
+            if (counter) counter.innerText = visibleCount;
+        });
+    }
+
+    // Copy Logs Button
+    const btnCopy = document.getElementById("btnCopyLogs");
+    if (btnCopy) {
+        btnCopy.addEventListener("click", function () {
+            const text = consoleBox ? consoleBox.innerText : "";
+            navigator.clipboard.writeText(text).then(() => {
+                btnCopy.innerHTML = '<i class="bi bi-check2 text-success me-1"></i> Copied!';
+                setTimeout(() => btnCopy.innerHTML = '<i class="bi bi-clipboard me-1"></i> Copy Logs', 2000);
+            });
+        });
+    }
+
+    // Clear Logs Button
+    const btnClear = document.getElementById("btnClearLogs");
+    if (btnClear) {
+        btnClear.addEventListener("click", function () {
+            if (consoleBox) consoleBox.innerHTML = '<div class="console-entry INFO">Console cleared by user.</div>';
+        });
+    }
+
+    // Polling if scan is RUNNING or PENDING
+    if (currentStatus === "RUNNING" || currentStatus === "PENDING") {
+        const interval = setInterval(function () {
+            fetch(`/api/scans/${scanId}/status?since_log_id=${lastLogId}`)
+                .then(res => res.json())
+                .then(data => {
+                    // Update Progress
+                    document.getElementById("scanProgressBar").style.width = data.progress + "%";
+                    document.getElementById("progressPercent").innerText = data.progress + "%";
+                    
+                    // Update Stepper Nodes
+                    if (data.progress >= 20) {
+                        document.getElementById("step1").className = "pipeline-step complete";
+                        document.getElementById("step2").className = "pipeline-step active";
+                    }
+                    if (data.progress >= 50) {
+                        document.getElementById("step2").className = "pipeline-step complete";
+                        document.getElementById("step3").className = "pipeline-step active";
+                    }
+                    if (data.progress >= 90) {
+                        document.getElementById("step3").className = "pipeline-step complete";
+                        document.getElementById("step4").className = "pipeline-step active";
+                    }
+
+                    // Update Metrics
+                    document.getElementById("statDuration").innerText = data.duration_seconds + "s";
+                    document.getElementById("statRequests").innerText = data.total_requests;
+                    document.getElementById("statEndpoints").innerText = data.endpoints_count;
+                    document.getElementById("statForms").innerText = data.forms_count;
+
+                    // Update Counters
+                    document.getElementById("countCritical").innerText = data.findings_by_severity.CRITICAL;
+                    document.getElementById("countHigh").innerText = data.findings_by_severity.HIGH;
+                    document.getElementById("countMedium").innerText = data.findings_by_severity.MEDIUM;
+                    document.getElementById("countLow").innerText = data.findings_by_severity.LOW;
+                    document.getElementById("countInfo").innerText = data.findings_by_severity.INFO;
+                    document.getElementById("findingsTabCount").innerText = data.total_findings;
+
+                    // Append new logs
+                    if (data.new_logs && data.new_logs.length > 0) {
+                        data.new_logs.forEach(log => {
+                            const entry = document.createElement("div");
+                            entry.className = `console-entry ${log.level}`;
+                            entry.innerHTML = `<span class="text-secondary font-monospace">[${log.timestamp}]</span> <span class="fw-bold font-monospace">[${log.level}]</span> <span>${log.message}</span>`;
+                            consoleBox.appendChild(entry);
+                            lastLogId = Math.max(lastLogId, log.id);
+                        });
+                        consoleBox.scrollTop = consoleBox.scrollHeight;
+                    }
+
+                    // Check if scan status transitioned to finished
+                    if (data.status === "COMPLETED" || data.status === "FAILED" || data.status === "CANCELLED") {
+                        clearInterval(interval);
+                        document.getElementById("step4").className = "pipeline-step complete";
+                        document.getElementById("progressText").innerHTML = data.status === "COMPLETED" 
+                            ? '<i class="bi bi-check-circle-fill text-success me-1"></i> Assessment Complete'
+                            : (data.status === "CANCELLED" ? '<i class="bi bi-slash-circle text-warning me-1"></i> Assessment Cancelled' : '<i class="bi bi-x-circle-fill text-danger me-1"></i> Assessment Failed');
+                        setTimeout(() => window.location.reload(), 1400);
+                    }
+                })
+                .catch(err => console.error("Polling error:", err));
+        }, 1500);
+    }
+});
+
+function cancelCurrentScan(scanId) {
+    if (!confirm("Are you sure you want to stop and cancel Scan #" + scanId + "?")) return;
+    fetch("/api/scans/" + scanId + "/cancel", { method: "POST" })
+        .then(res => res.json())
+        .then(data => {
+            alert(data.message || "Cancellation signal dispatched.");
+            window.location.reload();
+        })
+        .catch(err => alert("Error cancelling scan: " + err));
+}
+</script>
+{% endblock %}

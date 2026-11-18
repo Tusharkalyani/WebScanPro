@@ -1,0 +1,372 @@
+{% extends "base.html" %}
+
+{% block title %}Launch Assessment — WebScanPro{% endblock %}
+{% block page_title %}New Dynamic Security Assessment{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-xl-9 col-lg-10">
+        <form method="POST" action="{{ url_for('scan.new_scan') }}" id="newScanForm">
+            <!-- 1. Target Specification Card -->
+            <div class="card-saas mb-4">
+                <div class="card-saas-header">
+                    <div>
+                        <h2 class="card-saas-title"><i class="bi bi-crosshair text-cyan"></i> 1. Target Specification</h2>
+                        <div class="card-saas-subtitle">Select or enter an authorized local testing target</div>
+                    </div>
+                    <span class="chip chip-info font-monospace">Step 1 of 3</span>
+                </div>
+
+                <!-- Lab Presets Quick Select Cards -->
+                <div class="mb-4">
+                    <label class="form-label text-muted small text-uppercase fw-bold mb-2">Quick Select Authorized Lab Presets:</label>
+                    <div class="row g-2">
+                        {% for key, preset in presets.items() %}
+                        <div class="col-md-4">
+                            <button type="button" class="btn w-100 p-2 text-start preset-btn rounded"
+                                    data-url="{{ preset.url }}" data-name="{{ preset.name }}">
+                                <div class="d-flex align-items-center justify-content-between mb-1">
+                                    <span class="fw-semibold small preset-title">{{ preset.name }}</span>
+                                    <span class="status-dot online"></span>
+                                </div>
+                                <div class="font-monospace text-cyan" style="font-size: 0.74rem;">{{ preset.url }}</div>
+                            </button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Target URL & Name Input Row -->
+                <div class="row g-3 mb-3">
+                    <div class="col-md-8">
+                        <label class="form-label fw-semibold text-white small">Target Base URL <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text text-cyan"><i class="bi bi-globe2"></i></span>
+                            <input type="text" name="target_url" id="target_url" class="form-control form-control-saas"
+                                   placeholder="http://localhost:3000 or http://127.0.0.1:5001/mock-lab/"
+                                   value="{{ form_data.get('target_url', '') }}" required>
+                            <button type="button" class="btn-saas-secondary" id="btnValidateTarget">
+                                <i class="bi bi-shield-check text-cyan"></i> Verify
+                            </button>
+                        </div>
+                        <div id="targetValidationFeedback" class="small mt-2"></div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold text-white small">Target Label / Name</label>
+                        <input type="text" name="target_name" id="target_name" class="form-control form-control-saas"
+                               placeholder="e.g. Local Lab Assessment"
+                               value="{{ form_data.get('target_name', '') }}">
+                    </div>
+                </div>
+
+                <!-- Explicit Authorization Gate -->
+                <div class="p-3 rounded mt-3 auth-notice-box">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="is_authorized" id="is_authorized" value="1" required>
+                        <label class="form-check-label text-white fw-semibold small" for="is_authorized">
+                            I explicitly confirm that I am authorized to test this target application.
+                        </label>
+                    </div>
+                    <div class="text-warning mt-1 ms-4" style="font-size: 0.76rem;">
+                        <i class="bi bi-shield-exclamation me-1"></i> WebScanPro strictly enforces local security boundaries. Scans are allowed only against authorized loopback targets (`localhost`, `127.0.0.1`, RFC 1918 subnets).
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Scan Profile & Module Selection Card -->
+            <div class="card-saas mb-4">
+                <div class="card-saas-header">
+                    <div>
+                        <h2 class="card-saas-title"><i class="bi bi-sliders text-cyan"></i> 2. Assessment Profile &amp; Modules</h2>
+                        <div class="card-saas-subtitle">Tune surface depth and select dynamic vulnerability checkers</div>
+                    </div>
+                    <span class="chip chip-info font-monospace">Step 2 of 3</span>
+                </div>
+
+                <!-- Profile Radio Cards -->
+                <div class="mb-4">
+                    <label class="form-label text-muted small text-uppercase fw-bold mb-2">Select Scan Profile:</label>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="p-3 rounded d-block h-100 profile-radio-card" style="cursor: pointer;">
+                                <div class="form-check mb-1">
+                                    <input class="form-check-input" type="radio" name="scan_mode" value="QUICK" id="modeQuick">
+                                    <span class="form-check-label fw-bold text-white small">Quick Scan</span>
+                                </div>
+                                <div class="text-muted" style="font-size: 0.76rem;">Depth: 1 | Max Pages: 10<br/>Surface check for fast testing.</div>
+                            </label>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="p-3 rounded d-block h-100 profile-radio-card active-profile" style="cursor: pointer;">
+                                <div class="form-check mb-1">
+                                    <input class="form-check-input" type="radio" name="scan_mode" value="STANDARD" id="modeStandard" checked>
+                                    <span class="form-check-label fw-bold text-cyan small">Standard Scan (Recommended)</span>
+                                </div>
+                                <div class="text-muted" style="font-size: 0.76rem;">Depth: 3 | Max Pages: 30<br/>Comprehensive heuristic balance.</div>
+                            </label>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="p-3 rounded d-block h-100 profile-radio-card" style="cursor: pointer;">
+                                <div class="form-check mb-1">
+                                    <input class="form-check-input" type="radio" name="scan_mode" value="DEEP" id="modeDeep">
+                                    <span class="form-check-label fw-bold text-white small">Deep Scan</span>
+                                </div>
+                                <div class="text-muted" style="font-size: 0.76rem;">Depth: 5 | Max Pages: 80<br/>Full boundary crawling.</div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Enabled Testing Modules Grid -->
+                <div>
+                    <label class="form-label text-muted small text-uppercase fw-bold mb-2">Active Security Modules:</label>
+                    <div class="row g-2">
+                        <!-- Module 1: Headers -->
+                        <div class="col-md-6">
+                            <div class="p-3 rounded d-flex align-items-start justify-content-between card-inner-surface">
+                                <div class="d-flex gap-3">
+                                    <i class="bi bi-shield-lock text-cyan fs-5"></i>
+                                    <div>
+                                        <div class="fw-semibold text-white small">Security Headers &amp; Cookies</div>
+                                        <div class="text-muted" style="font-size: 0.75rem;">Audits CSP, HSTS, X-Frame, and cookie flags.</div>
+                                    </div>
+                                </div>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="modules" value="headers" checked>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Module 2: SQLi -->
+                        <div class="col-md-6">
+                            <div class="p-3 rounded d-flex align-items-start justify-content-between card-inner-surface">
+                                <div class="d-flex gap-3">
+                                    <i class="bi bi-database text-orange fs-5"></i>
+                                    <div>
+                                        <div class="fw-semibold text-white small">SQL Injection Analyzer</div>
+                                        <div class="text-muted" style="font-size: 0.75rem;">Safe syntax delimiter and differential checks.</div>
+                                    </div>
+                                </div>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="modules" value="sqli" checked>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Module 3: XSS -->
+                        <div class="col-md-6">
+                            <div class="p-3 rounded d-flex align-items-start justify-content-between card-inner-surface">
+                                <div class="d-flex gap-3">
+                                    <i class="bi bi-code-slash text-purple fs-5"></i>
+                                    <div>
+                                        <div class="fw-semibold text-white small">Reflected Input &amp; XSS</div>
+                                        <div class="text-muted" style="font-size: 0.75rem;">DOM context &amp; HTML entity encoding analysis.</div>
+                                    </div>
+                                </div>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="modules" value="xss" checked>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Module 4: Auth -->
+                        <div class="col-md-6">
+                            <div class="p-3 rounded d-flex align-items-start justify-content-between card-inner-surface">
+                                <div class="d-flex gap-3">
+                                    <i class="bi bi-key text-yellow fs-5"></i>
+                                    <div>
+                                        <div class="fw-semibold text-white small">Authentication &amp; Sessions</div>
+                                        <div class="text-muted" style="font-size: 0.75rem;">Cleartext transmission and logout invalidation.</div>
+                                    </div>
+                                </div>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="modules" value="auth" checked>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Module 5: IDOR -->
+                        <div class="col-md-12">
+                            <div class="p-3 rounded d-flex align-items-start justify-content-between card-inner-surface">
+                                <div class="d-flex gap-3">
+                                    <i class="bi bi-people text-green fs-5"></i>
+                                    <div>
+                                        <div class="fw-semibold text-white small">Access Control &amp; IDOR (BOLA)</div>
+                                        <div class="text-muted" style="font-size: 0.75rem;">Controlled two-account differential authorization testing.</div>
+                                    </div>
+                                </div>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="modules" value="idor" checked>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Advanced Crawler & Authentication Options (Accordion) -->
+            <div class="card-saas mb-4">
+                <div class="d-flex align-items-center justify-content-between" data-bs-toggle="collapse" data-bs-target="#advancedOptionsCollapse" style="cursor: pointer;">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="bi bi-gear text-cyan"></i>
+                        <span class="fw-semibold text-white small">Advanced Crawling &amp; Credentials Tuning</span>
+                    </div>
+                    <i class="bi bi-chevron-down text-muted"></i>
+                </div>
+
+                <div class="collapse pt-3" id="advancedOptionsCollapse">
+                    <div class="row g-3 pt-2 border-top border-secondary border-opacity-25">
+                        <div class="col-md-3 col-6">
+                            <label class="form-label text-muted small">Max Crawl Depth</label>
+                            <input type="number" name="max_depth" id="input_max_depth" class="form-control form-control-saas" value="3" min="1" max="10">
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <label class="form-label text-muted small">Max Page Budget</label>
+                            <input type="number" name="max_pages" id="input_max_pages" class="form-control form-control-saas" value="30" min="5" max="200">
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <label class="form-label text-muted small">Rate Limit (sec)</label>
+                            <input type="number" name="rate_limit" class="form-control form-control-saas" value="0.05" step="0.01" min="0" max="2">
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <label class="form-label text-muted small">Timeout (sec)</label>
+                            <input type="number" name="timeout" class="form-control form-control-saas" value="5" min="1" max="30">
+                        </div>
+
+                        <!-- Auth Credentials Section -->
+                        <div class="col-12 mt-3">
+                            <div class="p-3 rounded card-inner-surface">
+                                <h4 class="fs-6 fw-semibold text-white mb-2"><i class="bi bi-key me-1 text-cyan"></i> Authenticated Session Config</h4>
+                                <div class="row g-2">
+                                    <div class="col-md-4">
+                                        <input type="text" name="auth_cookie_name" class="form-control form-control-saas" placeholder="Cookie Name (e.g. session, token)">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <input type="text" name="auth_session_token" class="form-control form-control-saas" placeholder="Session Token Value">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <input type="text" name="auth_protected_url" class="form-control form-control-saas" placeholder="Protected URL to verify">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- IDOR Accounts Section -->
+                        <div class="col-12">
+                            <div class="p-3 rounded card-inner-surface">
+                                <h4 class="fs-6 fw-semibold text-white mb-2"><i class="bi bi-people me-1 text-cyan"></i> IDOR / BOLA Multi-Account Testing</h4>
+                                <div class="row g-2">
+                                    <div class="col-md-4">
+                                        <input type="text" name="idor_token_a" class="form-control form-control-saas" placeholder="Account A Token">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <input type="text" name="idor_resource_a" class="form-control form-control-saas" placeholder="Account A Resource URL">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <input type="text" name="idor_token_b" class="form-control form-control-saas" placeholder="Account B Token">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Submit Action Footer -->
+            <div class="d-flex justify-content-between align-items-center mb-5">
+                <a href="{{ url_for('dashboard.index') }}" class="btn-saas-secondary">
+                    <i class="bi bi-arrow-left"></i> Cancel
+                </a>
+                <button type="submit" class="btn-saas-primary px-4 py-2" id="btnSubmitScan">
+                    <i class="bi bi-shield-play"></i> Initialize Dynamic Assessment
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    // 1. Preset button click handler
+    document.querySelectorAll(".preset-btn").forEach(btn => {
+        btn.addEventListener("click", function () {
+            const url = this.getAttribute("data-url");
+            const name = this.getAttribute("data-name");
+            document.getElementById("target_url").value = url;
+            document.getElementById("target_name").value = name;
+            validateTargetUrl(url);
+        });
+    });
+
+    // 2. Profile Radio selection updates
+    const modeRadios = document.querySelectorAll('input[name="scan_mode"]');
+    const maxDepthInput = document.getElementById("input_max_depth");
+    const maxPagesInput = document.getElementById("input_max_pages");
+
+    modeRadios.forEach(radio => {
+        radio.addEventListener("change", function () {
+            document.querySelectorAll(".profile-radio-card").forEach(c => c.classList.remove("active-profile"));
+            this.closest(".profile-radio-card").classList.add("active-profile");
+
+            if (this.value === "QUICK") {
+                if (maxDepthInput) maxDepthInput.value = 1;
+                if (maxPagesInput) maxPagesInput.value = 10;
+            } else if (this.value === "STANDARD") {
+                if (maxDepthInput) maxDepthInput.value = 3;
+                if (maxPagesInput) maxPagesInput.value = 30;
+            } else if (this.value === "DEEP") {
+                if (maxDepthInput) maxDepthInput.value = 5;
+                if (maxPagesInput) maxPagesInput.value = 80;
+            }
+        });
+    });
+
+    // 3. Pre-flight Target Validation
+    const btnValidate = document.getElementById("btnValidateTarget");
+    const targetUrlInput = document.getElementById("target_url");
+    const feedbackBox = document.getElementById("targetValidationFeedback");
+
+    if (btnValidate && targetUrlInput) {
+        btnValidate.addEventListener("click", function () {
+            validateTargetUrl(targetUrlInput.value);
+        });
+    }
+
+    function validateTargetUrl(url) {
+        if (!url) {
+            feedbackBox.innerHTML = '<span class="text-warning"><i class="bi bi-exclamation-circle me-1"></i> Please enter a target URL.</span>';
+            return;
+        }
+
+        feedbackBox.innerHTML = '<span class="text-cyan"><i class="bi bi-arrow-repeat spin me-1"></i> Testing connectivity and boundary rules...</span>';
+
+        fetch("/api/targets/validate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url: url, is_authorized: true })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.valid) {
+                feedbackBox.innerHTML = `
+                    <div class="chip chip-success mt-1">
+                        <i class="bi bi-check-circle-fill"></i> Valid Target Host: ${data.host}:${data.port || 80} (${data.connectivity.status})
+                    </div>
+                `;
+            } else {
+                feedbackBox.innerHTML = `
+                    <div class="chip chip-critical mt-1">
+                        <i class="bi bi-x-circle-fill"></i> Validation Error: ${data.error}
+                    </div>
+                `;
+            }
+        })
+        .catch(err => {
+            feedbackBox.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle me-1"></i> Connectivity test failed: ${err}</span>`;
+        });
+    }
+});
+</script>
+{% endblock %}
