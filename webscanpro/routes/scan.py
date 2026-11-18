@@ -11,6 +11,7 @@ from config import Config
 scan_bp = Blueprint("scan", __name__)
 
 @scan_bp.route("/")
+@scan_bp.route("/history")
 def history():
     target_filter = request.args.get("target_id", type=int)
     status_filter = request.args.get("status")
